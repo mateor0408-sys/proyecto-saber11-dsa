@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor Saber 11 — Maqueta</title>
+<style>
+  :root {
+    --bg: #f4f4f1; --surface: #ffffff; --ink: #0b0b0b; --ink-2: #52514e; --muted: #8a8984;
+    --line: #e4e3df; --blue: #2a78d6; --blue-soft: #cde2fb; --orange: #eb6834; --orange-soft: #fbe1d6;
+    --green: #008300; --note: #6250d6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .screen { width: 1280px; margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: #0d366b; color: #fff; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  header span { font-size: 12px; opacity: .8; }
+  .tabs { display: flex; gap: 4px; padding: 0 22px; border-bottom: 1px solid var(--line); }
+  .tab { padding: 10px 14px; color: var(--ink-2); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--blue); border-color: var(--blue); font-weight: 600; }
+  .filters { display: flex; gap: 10px; padding: 12px 22px; border-bottom: 1px solid var(--line); background: #fafaf8; align-items: end; }
+  .f label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .sel { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 6px 10px; min-width: 150px; color: var(--ink); }
+  .sel::after { content: " ▾"; color: var(--muted); float: right; }
+  .body { padding: 18px 22px; display: grid; gap: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; position: relative; }
+  .kpi .v { font-size: 26px; font-weight: 700; }
+  .kpi .l { color: var(--ink-2); font-size: 12px; }
+  .kpi .d { font-size: 11px; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  h3 { margin: 0 0 10px; font-size: 13px; }
+  h3 small { font-weight: 400; color: var(--muted); }
+  .bar { display: grid; grid-template-columns: 150px 1fr 44px; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+  .bar .t { background: #f1f0ec; border-radius: 3px; height: 13px; position: relative; }
+  .bar .t i { position: absolute; inset: 0 auto 0 0; background: var(--orange); border-radius: 3px; }
+  .bar .t b { position: absolute; top: -3px; bottom: -3px; left: 25%; border-left: 1.5px dashed var(--ink); }
+  .bar .n { color: var(--ink-2); text-align: right; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 6px 4px; }
+  td { padding: 6px 4px; border-bottom: 1px solid #f1f0ec; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .hi { background: var(--orange-soft); color: #a23c12; }
+  .md { background: #fdf0cc; color: #7a5200; }
+  .badge { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; border-radius: 50%; background: var(--note); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 12px; box-shadow: 0 0 0 3px #fff; }
+  .notes { border-top: 1px dashed var(--line); padding: 14px 22px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; font-size: 12px; color: var(--ink-2); }
+  .notes b.n { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--note); color: #fff; font-size: 10px; margin-right: 6px; }
+  .notes h4 { grid-column: 1 / -1; margin: 0 0 4px; color: var(--ink); font-size: 12px; }
+  .heat { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 2px; font-size: 11px; text-align: center; }
+  .heat div { padding: 5px 0; border-radius: 2px; }
+  .heat .h { color: var(--muted); }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .btn { background: var(--blue); color: #fff; border-radius: 6px; padding: 9px 14px; text-align: center; font-weight: 600; grid-column: 1 / -1; }
+  .api { font: 11px/1.4 ui-monospace, Menlo, monospace; background: #0b0b0b; color: #e8e8e3; border-radius: 6px; padding: 10px 12px; white-space: pre; }
+  .gauge { display: flex; align-items: center; gap: 18px; }
+  .factor { display: grid; grid-template-columns: 190px 1fr 46px; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+  .factor .t { height: 12px; position: relative; background: #f1f0ec; border-radius: 3px; }
+  .factor .t i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+  .factor .t:before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px solid var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ======================= VISTA 1: DIAGNÓSTICO ======================= -->
+<section class="screen" id="vista-diagnostico">
+  <header><h1>Monitor de Riesgo Académico · Saber 11</h1><span>Secretarías de educación · Periodo 20224 · Datos: ICFES / datos.gov.co</span></header>
+  <nav class="tabs"><div class="tab on">1. Diagnóstico territorial</div><div class="tab">2. Predicción de riesgo</div><div class="tab">3. Priorización de colegios</div></nav>
+  <div class="filters" style="position:relative">
+    <div class="f"><label>Periodo</label><div class="sel">20224</div></div>
+    <div class="f"><label>Departamento</label><div class="sel">Todos</div></div>
+    <div class="f"><label>Municipio</label><div class="sel">Todos</div></div>
+    <div class="f"><label>Naturaleza</label><div class="sel">Oficial + No oficial</div></div>
+    <div class="f"><label>Zona</label><div class="sel">Urbana + Rural</div></div>
+    <div class="f"><label>Jornada</label><div class="sel">Todas</div></div>
+    <span class="badge" style="top:6px;right:12px">1</span>
+  </div>
+  <div class="body">
+    <div class="kpis">
+      <div class="card kpi"><div class="l">Estudiantes evaluados</div><div class="v">532.788</div><div class="d">10.378 colegios · 1.114 municipios</div><span class="badge">2</span></div>
+      <div class="card kpi"><div class="l">Puntaje global promedio</div><div class="v">250</div><div class="d">Desv. estándar 52 · escala 0–500</div></div>
+      <div class="card kpi"><div class="l">Estudiantes en riesgo (&lt; 210 pts)</div><div class="v" style="color:var(--orange)">25,0 %</div><div class="d">Umbral = percentil 25 nacional</div></div>
+      <div class="card kpi"><div class="l">Colegios con ≥ 50 % en riesgo</div><div class="v" style="color:var(--orange)">1.172</div><div class="d">115 municipios con ≥ 50 % en riesgo</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><span class="badge">3</span>
+        <h3>Tasa de riesgo por departamento <small>· clic en una barra filtra el tablero · línea = 25 % nacional</small></h3>
+        <div class="bar"><span>Chocó</span><span class="t"><i style="width:61%"></i><b></b></span><span class="n">61 %</span></div>
+        <div class="bar"><span>Vaupés</span><span class="t"><i style="width:54%"></i><b></b></span><span class="n">54 %</span></div>
+        <div class="bar"><span>Amazonas</span><span class="t"><i style="width:51%"></i><b></b></span><span class="n">51 %</span></div>
+        <div class="bar"><span>Vichada</span><span class="t"><i style="width:48%"></i><b></b></span><span class="n">48 %</span></div>
+        <div class="bar"><span>La Guajira</span><span class="t"><i style="width:47%"></i><b></b></span><span class="n">47 %</span></div>
+        <div class="bar"><span>Magdalena</span><span class="t"><i style="width:42%"></i><b></b></span><span class="n">42 %</span></div>
+        <div class="bar"><span>Bolívar</span><span class="t"><i style="width:41%"></i><b></b></span><span class="n">41 %</span></div>
+        <div class="bar" style="color:var(--muted)"><span>… 23 más</span><span></span><span></span></div>
+        <div class="bar"><span>Boyacá</span><span class="t"><i style="width:12%"></i><b></b></span><span class="n">12 %</span></div>
+        <div class="bar"><span>Bogotá</span><span class="t"><i style="width:12%"></i><b></b></span><span class="n">12 %</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Alterna con mapa coroplético por departamento / municipio.</div>
+      </div>
+      <div class="card"><span class="badge">4</span>
+        <h3>¿Qué factores concentran el riesgo? <small>· % de estudiantes en riesgo</small></h3>
+        <div class="bar"><span>Madre sin educación</span><span class="t"><i style="width:55%"></i><b></b></span><span class="n">55 %</span></div>
+        <div class="bar"><span>Madre con posgrado</span><span class="t"><i style="width:6%"></i><b></b></span><span class="n">6 %</span></div>
+        <div class="bar"><span>Jornada nocturna</span><span class="t"><i style="width:55%"></i><b></b></span><span class="n">55 %</span></div>
+        <div class="bar"><span>Jornada completa</span><span class="t"><i style="width:12%"></i><b></b></span><span class="n">12 %</span></div>
+        <div class="bar"><span>Sin internet en casa</span><span class="t"><i style="width:39%"></i><b></b></span><span class="n">39 %</span></div>
+        <div class="bar"><span>Con internet en casa</span><span class="t"><i style="width:19%"></i><b></b></span><span class="n">19 %</span></div>
+        <div class="bar"><span>Colegio rural</span><span class="t"><i style="width:40%"></i><b></b></span><span class="n">40 %</span></div>
+        <div class="bar"><span>Colegio urbano</span><span class="t"><i style="width:22%"></i><b></b></span><span class="n">22 %</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Selector de variable: estrato, educación de padres, recursos del hogar, naturaleza, zona, jornada.</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><span class="badge">5</span>
+        <h3>Municipios prioritarios <small>· ≥ 100 evaluados, ordenados por tasa de riesgo</small></h3>
+        <table>
+          <tr><th>Municipio</th><th>Depto.</th><th>Evaluados</th><th>Puntaje medio</th><th>% riesgo</th></tr>
+          <tr><td>Bojayá</td><td>Chocó</td><td>120</td><td>170</td><td><span class="pill hi">98 %</span></td></tr>
+          <tr><td>El Litoral del San Juan</td><td>Chocó</td><td>125</td><td>172</td><td><span class="pill hi">97 %</span></td></tr>
+          <tr><td>López de Micay</td><td>Cauca</td><td>114</td><td>179</td><td><span class="pill hi">90 %</span></td></tr>
+          <tr><td>Timbiquí</td><td>Cauca</td><td>194</td><td>181</td><td><span class="pill hi">86 %</span></td></tr>
+          <tr><td>Manaure</td><td>La Guajira</td><td>666</td><td>188</td><td><span class="pill hi">76 %</span></td></tr>
+        </table>
+      </div>
+      <div class="card"><span class="badge">6</span>
+        <h3>Riesgo por estrato × naturaleza del colegio <small>· % en riesgo</small></h3>
+        <div class="heat">
+          <div class="h"></div><div class="h">No oficial</div><div class="h">Oficial</div>
+          <div class="h">Sin estrato</div><div style="background:#f3a583">46</div><div style="background:#ef8b62">56</div>
+          <div class="h">Estrato 1</div><div style="background:#f8cdb9">29</div><div style="background:#f8cdb9">28</div>
+          <div class="h">Estrato 2</div><div style="background:#fbe1d6">17</div><div style="background:#f9d7c7">22</div>
+          <div class="h">Estrato 3</div><div style="background:#fdf0ea">11</div><div style="background:#f9d7c7">22</div>
+          <div class="h">Estrato 4</div><div style="background:#fef6f2">7</div><div style="background:#f4b394">40</div>
+          <div class="h">Estrato 5</div><div style="background:#fdf3ee">9</div><div style="background:#f09670">53</div>
+          <div class="h">Estrato 6</div><div style="background:#fdf1eb">12</div><div style="background:#eb6834;color:#fff">64</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <h4>Cómo responde cada elemento a la pregunta de negocio</h4>
+    <div><b class="n">1</b>Filtros globales: el usuario (secretaría o rector) acota a su territorio, tipo de colegio y jornada.</div>
+    <div><b class="n">4</b>Factores asociados: muestra <i>a quién</i> focalizar según su contexto (hallazgos del EDA).</div>
+    <div><b class="n">2</b>KPIs de magnitud: cuántos estudiantes y colegios están en riesgo en el filtro actual.</div>
+    <div><b class="n">5</b>Priorización territorial: lista accionable de municipios con mayor concentración de riesgo.</div>
+    <div><b class="n">3</b>Brecha territorial: <i>dónde</i> intervenir primero (Chocó 61 % vs Bogotá 12 %).</div>
+    <div><b class="n">6</b>Interacciones: revela patrones no evidentes (p. ej. inconsistencia del estrato en colegios oficiales).</div>
+  </div>
+</section>
+
+<!-- ======================= VISTA 2: PREDICCIÓN ======================= -->
+<section class="screen" id="vista-prediccion">
+  <header><h1>Monitor de Riesgo Académico · Saber 11</h1><span>Secretarías de educación · Periodo 20224 · Datos: ICFES / datos.gov.co</span></header>
+  <nav class="tabs"><div class="tab">1. Diagnóstico territorial</div><div class="tab on">2. Predicción de riesgo</div><div class="tab">3. Priorización de colegios</div></nav>
+  <div class="body">
+    <div class="grid3" style="grid-template-columns: 1.05fr 1fr 1fr">
+      <div class="card"><span class="badge">7</span>
+        <h3>Perfil del estudiante <small>· variables disponibles antes de la prueba</small></h3>
+        <div class="form">
+          <div class="f"><label>Departamento del colegio</label><div class="sel">La Guajira</div></div>
+          <div class="f"><label>Naturaleza</label><div class="sel">Oficial</div></div>
+          <div class="f"><label>Zona</label><div class="sel">Rural</div></div>
+          <div class="f"><label>Jornada</label><div class="sel">Mañana</div></div>
+          <div class="f"><label>Educación de la madre</label><div class="sel">Primaria incompleta</div></div>
+          <div class="f"><label>Educación del padre</label><div class="sel">Primaria completa</div></div>
+          <div class="f"><label>Estrato de la vivienda</label><div class="sel">Estrato 1</div></div>
+          <div class="f"><label>Personas en el hogar</label><div class="sel">5 a 6</div></div>
+          <div class="f"><label>Internet en casa</label><div class="sel">No</div></div>
+          <div class="f"><label>Computador en casa</label><div class="sel">No</div></div>
+          <div class="btn">Calcular riesgo</div>
+        </div>
+      </div>
+      <div class="card"><span class="badge">8</span>
+        <h3>Resultado del modelo</h3>
+        <div class="gauge">
+          <svg width="150" height="90" viewBox="0 0 150 90" role="img" aria-label="Probabilidad de riesgo 71 %">
+            <path d="M15 80 A60 60 0 0 1 135 80" fill="none" stroke="#f1f0ec" stroke-width="14" stroke-linecap="round"/>
+            <path d="M15 80 A60 60 0 0 1 116 37" fill="none" stroke="#eb6834" stroke-width="14" stroke-linecap="round"/>
+            <text x="75" y="74" text-anchor="middle" font-size="24" font-weight="700" fill="#0b0b0b">71 %</text>
+          </svg>
+          <div>
+            <div style="font-size:12px;color:var(--ink-2)">Probabilidad de puntaje global &lt; 210</div>
+            <div style="margin:6px 0"><span class="pill hi">RIESGO ALTO</span></div>
+            <div style="font-size:12px;color:var(--ink-2)">Puntaje global estimado: <b style="color:var(--ink)">198</b> <span style="color:var(--muted)">(IC 80 %: 165–232)</span></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--muted)">Clasificador (riesgo) + regresor (puntaje). Se reportan AUC y error en la pestaña "Acerca del modelo".</div>
+        <h3 style="margin-top:14px">Recomendación</h3>
+        <div style="font-size:12px;color:var(--ink-2)">Priorizar para programa de refuerzo pre-Saber y acompañamiento de conectividad.</div>
+      </div>
+      <div class="card"><span class="badge">9</span>
+        <h3>Factores que más pesan en esta predicción</h3>
+        <div class="factor"><span>Educación madre: primaria inc.</span><span class="t"><i style="left:50%;width:34%;background:var(--orange)"></i></span><span>+0,17</span></div>
+        <div class="factor"><span>Sin computador</span><span class="t"><i style="left:50%;width:24%;background:var(--orange)"></i></span><span>+0,12</span></div>
+        <div class="factor"><span>Departamento: La Guajira</span><span class="t"><i style="left:50%;width:22%;background:var(--orange)"></i></span><span>+0,11</span></div>
+        <div class="factor"><span>Zona rural</span><span class="t"><i style="left:50%;width:16%;background:var(--orange)"></i></span><span>+0,08</span></div>
+        <div class="factor"><span>Sin internet</span><span class="t"><i style="left:50%;width:14%;background:var(--orange)"></i></span><span>+0,07</span></div>
+        <div class="factor"><span>Jornada mañana</span><span class="t"><i style="left:46%;width:4%;background:var(--blue)"></i></span><span>−0,02</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Contribuciones SHAP (valores ilustrativos en la maqueta).</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card"><span class="badge">10</span>
+        <h3>Llamada a la API de inferencia <small>· FastAPI en contenedor Docker</small></h3>
+<div class="api">POST /api/v1/predict
+{ "cole_depto_ubicacion": "LA GUAJIRA", "cole_naturaleza": "OFICIAL",
+  "cole_area_ubicacion": "RURAL", "cole_jornada": "MAÑANA",
+  "fami_educacionmadre": "Primaria incompleta", "fami_tieneinternet": "No", ... }
+
+→ 200 OK
+{ "prob_riesgo": 0.71, "nivel": "alto", "punt_global_estimado": 198,
+  "factores": [["fami_educacionmadre", 0.17], ["fami_tienecomputador", 0.12], ...] }</div>
+      </div>
+      <div class="card"><span class="badge">11</span>
+        <h3>Carga por lotes <small>· para rectores y secretarías</small></h3>
+        <div style="border:1.5px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--ink-2)">Arrastre un CSV con los estudiantes de grado 11 → <b>/api/v1/predict_batch</b></div>
+        <table style="margin-top:10px">
+          <tr><th>Estudiante</th><th>Prob. riesgo</th><th>Nivel</th></tr>
+          <tr><td>EST-0142</td><td>0,71</td><td><span class="pill hi">Alto</span></td></tr>
+          <tr><td>EST-0087</td><td>0,44</td><td><span class="pill md">Medio</span></td></tr>
+          <tr><td>EST-0019</td><td>0,12</td><td>Bajo</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <h4>Cómo responde cada elemento a la pregunta de negocio</h4>
+    <div><b class="n">7</b>Entradas: solo variables conocidas antes de la prueba (sin puntajes por área, que filtrarían el resultado).</div>
+    <div><b class="n">10</b>Integración: el tablero consume el modelo empaquetado exclusivamente vía API.</div>
+    <div><b class="n">8</b>Salida: probabilidad de riesgo + puntaje estimado → decisión de focalización.</div>
+    <div><b class="n">11</b>Escalabilidad: predicción para un grupo completo y exportación de la lista priorizada.</div>
+    <div><b class="n">9</b>Explicabilidad: qué factores elevan el riesgo, para diseñar la intervención adecuada.</div>
+  </div>
+</section>
+
+<script>
+  // ?vista=diagnostico | ?vista=prediccion muestra una sola vista (para capturas)
+  const vista = new URLSearchParams(location.search).get("vista");
+  if (vista) document.querySelectorAll(".screen").forEach(s => { if (s.id !== "vista-" + vista) s.remove(); });
+</script>
+</body>
+</html>
