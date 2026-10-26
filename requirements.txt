@@ -1,0 +1,8 @@
+pandas
+pyarrow
+requests
+matplotlib
+seaborn
+dvc[s3]
+jupyter
+nbconvert
