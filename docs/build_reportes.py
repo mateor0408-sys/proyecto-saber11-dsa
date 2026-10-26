@@ -20,7 +20,7 @@ BLUE = RGBColor(0x0D, 0x36, 0x6B)
 GREY = RGBColor(0x52, 0x51, 0x4E)
 
 REPO_URL = "[URL del repositorio GitHub]"
-S3_URL = "[s3://bucket/saber11]"
+S3_URL = "s3://mateorios2002-dvcstore/saber11"
 
 
 def base_doc():
