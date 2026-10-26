@@ -1,0 +1,14 @@
+stages:
+  download:
+    cmd: python src/download_data.py --periodo 20224 --out data/raw/saber11.csv
+    deps:
+      - src/download_data.py
+    outs:
+      - data/raw/saber11.csv
+  clean:
+    cmd: python src/clean_data.py --src data/raw/saber11.csv --out data/processed/saber11_clean.parquet
+    deps:
+      - src/clean_data.py
+      - data/raw/saber11.csv
+    outs:
+      - data/processed/saber11_clean.parquet

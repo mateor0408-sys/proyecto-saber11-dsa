@@ -1,0 +1,31 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: python src/download_data.py --periodo 20224 --out data/raw/saber11.csv
+    deps:
+    - path: src/download_data.py
+      hash: md5
+      md5: 57147b912f57849898e7e35ab43c8abf
+      size: 2619
+    outs:
+    - path: data/raw/saber11.csv
+      hash: md5
+      md5: ec8241f2122ba97122c62cc29bdda033
+      size: 305926432
+  clean:
+    cmd: python src/clean_data.py --src data/raw/saber11.csv --out 
+      data/processed/saber11_clean.parquet
+    deps:
+    - path: data/raw/saber11.csv
+      hash: md5
+      md5: ec8241f2122ba97122c62cc29bdda033
+      size: 305926432
+    - path: src/clean_data.py
+      hash: md5
+      md5: bd515857bc9853aa11edcf9f562b2d6e
+      size: 2063
+    outs:
+    - path: data/processed/saber11_clean.parquet
+      hash: md5
+      md5: e32417e127ae3645f0c0ab9a777467ca
+      size: 15375041
