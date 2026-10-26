@@ -1,346 +1,484 @@
-"""Genera los reportes de la Entrega 1 (.docx) a partir de las figuras del EDA y la maqueta.
+"""Genera los reportes de la Entrega 1 (.docx, formato IEEE) a partir de las figuras del EDA,
+la maqueta y las capturas de los repositorios.
 
 Uso: python docs/build_reportes.py
 """
 from pathlib import Path
 
 from docx import Document
+from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt, RGBColor
+from docx.shared import Cm, Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[1]
 FIG = ROOT / "reports" / "figures"
+CAP = ROOT / "reports" / "capturas"
 MOCK = ROOT / "mockup"
 OUT = ROOT / "docs"
 
-BLUE = RGBColor(0x0D, 0x36, 0x6B)
-GREY = RGBColor(0x52, 0x51, 0x4E)
-
 REPO_URL = "https://github.com/mateor0408-sys/proyecto-saber11-dsa"
 S3_URL = "s3://mateorios2002-dvcstore/saber11"
+FECHA = "25 de octubre de 2026"
+
+FONT = "Times New Roman"
+COL_W = Cm(8.4)     # ancho de columna IEEE (≈ 3.3 in)
+FULL_W = Cm(17.5)   # ancho de página útil
+
+
+# ----------------------------------------------------------------------------- utilidades
+def set_font(run, size=10, bold=None, italic=None, small_caps=None):
+    run.font.name, run.font.size = FONT, Pt(size)
+    run._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), FONT)
+    if bold is not None:
+        run.bold = bold
+    if italic is not None:
+        run.italic = italic
+    if small_caps is not None:
+        run.font.small_caps = small_caps
+    return run
+
+
+def set_columns(section, n, space_cm=0.64):
+    cols = section._sectPr.find(qn("w:cols"))
+    if cols is None:
+        cols = OxmlElement("w:cols")
+        section._sectPr.append(cols)
+    cols.set(qn("w:num"), str(n))
+    cols.set(qn("w:space"), str(int(Cm(space_cm).twips)))
+
+
+def new_section(doc, cols):
+    sec = doc.add_section(WD_SECTION.CONTINUOUS)
+    set_columns(sec, cols)
+    return sec
 
 
 def base_doc():
     doc = Document()
     sec = doc.sections[0]
-    sec.page_width, sec.page_height = Cm(21.59), Cm(27.94)
-    for side in ("left_margin", "right_margin"):
-        setattr(sec, side, Cm(2.2))
-    sec.top_margin = sec.bottom_margin = Cm(2)
+    sec.page_width, sec.page_height = Inches(8.5), Inches(11)
+    sec.top_margin, sec.bottom_margin = Inches(0.75), Inches(1)
+    sec.left_margin = sec.right_margin = Inches(0.625)
     st = doc.styles["Normal"]
-    st.font.name, st.font.size = "Calibri", Pt(10.5)
-    st.paragraph_format.space_after = Pt(4)
-    st.paragraph_format.line_spacing = 1.08
-    for name, size in (("Heading 1", 14), ("Heading 2", 11.5)):
-        h = doc.styles[name]
-        h.font.name, h.font.size, h.font.color.rgb, h.font.bold = "Calibri", Pt(size), BLUE, True
-        h.paragraph_format.space_before = Pt(10)
-        h.paragraph_format.space_after = Pt(4)
+    st.font.name, st.font.size = FONT, Pt(10)
+    st.element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), FONT)
+    pf = st.paragraph_format
+    pf.space_before, pf.space_after, pf.line_spacing = Pt(0), Pt(0), 1.0
     return doc
 
 
-def para(doc, text, bold_prefix=None, size=None, italic=False, align=None, color=None):
+def body(doc, text, lead=None, indent=True):
+    """Párrafo justificado con sangría IEEE; `lead` va en itálica (estilo de párrafo con título)."""
     p = doc.add_paragraph()
-    if bold_prefix:
-        p.add_run(bold_prefix).bold = True
-    r = p.add_run(text)
-    r.italic = italic
-    if size:
-        r.font.size = Pt(size)
-    if color:
-        r.font.color.rgb = color
-    if align:
-        p.alignment = align
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    if indent:
+        p.paragraph_format.first_line_indent = Cm(0.36)
+    if lead:
+        set_font(p.add_run(lead + " "), italic=True)
+    set_font(p.add_run(text))
+    return p
+
+
+def section_title(doc, numeral, text):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before, p.paragraph_format.space_after = Pt(8), Pt(4)
+    p.paragraph_format.keep_with_next = True
+    set_font(p.add_run(f"{numeral}. {text}" if numeral else text), small_caps=True)
+    return p
+
+
+def subsection(doc, letter, text):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before, p.paragraph_format.space_after = Pt(4), Pt(2)
+    p.paragraph_format.keep_with_next = True
+    set_font(p.add_run(f"{letter}. {text}"), italic=True)
     return p
 
 
 def bullets(doc, items):
-    for it in items:
-        p = doc.add_paragraph(style="List Bullet")
-        if isinstance(it, tuple):
-            p.add_run(it[0]).bold = True
-            p.add_run(it[1])
-        else:
-            p.add_run(it)
-        p.paragraph_format.space_after = Pt(2)
+    for lead, text in items:
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        p.paragraph_format.left_indent = Cm(0.5)
+        p.paragraph_format.first_line_indent = Cm(-0.3)
+        set_font(p.add_run("• "))
+        if lead:
+            set_font(p.add_run(lead + " "), italic=True)
+        set_font(p.add_run(text))
 
 
-def placeholder(p, text):
-    r = p.add_run(text)
-    r.font.highlight_color = WD_COLOR_INDEX.YELLOW
-    return r
+class Counter:
+    def __init__(self):
+        self.fig = 0
+        self.tab = 0
+
+
+def figure(doc, cnt, path, caption, width=COL_W):
+    cnt.fig += 1
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.keep_with_next = True
+    p.add_run().add_picture(str(path), width=width)
+    c = doc.add_paragraph()
+    c.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY if width == COL_W else WD_ALIGN_PARAGRAPH.CENTER
+    c.paragraph_format.space_before, c.paragraph_format.space_after = Pt(3), Pt(8)
+    set_font(c.add_run(f"Fig. {cnt.fig}. "), size=8)
+    set_font(c.add_run(caption), size=8)
+    return cnt.fig
+
+
+def figure_pair(doc, cnt, left, right):
+    """Dos figuras lado a lado a ancho de página; cada argumento es (ruta, pie de figura)."""
+    t = doc.add_table(rows=2, cols=2)
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, (path, caption) in enumerate((left, right)):
+        cnt.fig += 1
+        img, cap = t.rows[0].cells[i], t.rows[1].cells[i]
+        img.width = cap.width = Cm(8.75)
+        img.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        img.paragraphs[0].add_run().add_picture(str(path), width=Cm(8.4))
+        cp = cap.paragraphs[0]
+        cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cp.paragraph_format.space_before = Pt(3)
+        set_font(cp.add_run(f"Fig. {cnt.fig}. "), size=8)
+        set_font(cp.add_run(caption), size=8)
+    sp = doc.add_paragraph()
+    sp.paragraph_format.space_after = Pt(4)
+
+
+ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
 
 
 def shade(cell, hex_color):
-    tc = cell._tc.get_or_add_tcPr()
     shd = OxmlElement("w:shd")
     shd.set(qn("w:val"), "clear")
     shd.set(qn("w:color"), "auto")
     shd.set(qn("w:fill"), hex_color)
-    tc.append(shd)
+    cell._tc.get_or_add_tcPr().append(shd)
 
 
-def table(doc, header, rows, widths, size=9):
+def table(doc, cnt, title, header, rows, widths, size=8):
+    cnt.tab += 1
+    for text in (f"Tabla {ROMAN[cnt.tab - 1]}", title):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.keep_with_next = True
+        set_font(p.add_run(text), size=8, small_caps=True)
     t = doc.add_table(rows=1, cols=len(header))
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
     for i, h in enumerate(header):
         c = t.rows[0].cells[i]
         c.text = ""
-        r = c.paragraphs[0].add_run(h)
-        r.bold, r.font.size = True, Pt(size)
-        r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        shade(c, "0D366B")
+        set_font(c.paragraphs[0].add_run(h), size=size, bold=True)
+        shade(c, "E8E8E8")
     for row in rows:
         cells = t.add_row().cells
         for i, v in enumerate(row):
             cells[i].text = ""
-            cells[i].paragraphs[0].add_run(str(v)).font.size = Pt(size)
+            set_font(cells[i].paragraphs[0].add_run(str(v)), size=size)
     for row in t.rows:
         for i, w in enumerate(widths):
             row.cells[i].width = Cm(w)
-    doc.add_paragraph().paragraph_format.space_after = Pt(0)
-    return t
+    sp = doc.add_paragraph()
+    sp.paragraph_format.space_after = Pt(4)
+    return ROMAN[cnt.tab - 1]
 
 
-def figure(doc, path, width_cm, caption):
-    doc.add_picture(str(path), width=Cm(width_cm))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p = para(doc, caption, size=8.5, italic=True, align=WD_ALIGN_PARAGRAPH.CENTER, color=GREY)
+def title_block(doc, title, subtitle):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(6)
+    set_font(p.add_run(title), size=24)
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    set_font(p.add_run(subtitle), size=11, italic=True)
+    authors = doc.add_table(rows=1, cols=3)
+    authors.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for cell, name in zip(authors.rows[0].cells, ("Mateo Ríos", "Harol Perafan", "Sebastian Vivas")):
+        cell.width = Cm(5.8)
+        cp = cell.paragraphs[0]
+        cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cp.paragraph_format.space_before = Pt(8)
+        set_font(cp.add_run(name), size=11)
+        for line in ("Maestría en Inteligencia Analítica de Datos", "Universidad de los Andes", "Bogotá, Colombia"):
+            lp = cell.add_paragraph()
+            lp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            set_font(lp.add_run(line), size=9, italic=line.startswith("Maestría"))
+    sp = doc.add_paragraph()
+    sp.paragraph_format.space_after = Pt(6)
 
 
-def figure_pair(doc, left, right, caption, width_cm=8.3):
-    t = doc.add_table(rows=1, cols=2)
-    for cell, path in zip(t.rows[0].cells, (left, right)):
-        cell.width = Cm(width_cm + 0.3)
-        cell.paragraphs[0].add_run().add_picture(str(path), width=Cm(width_cm))
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p = para(doc, caption, size=8.5, italic=True, align=WD_ALIGN_PARAGRAPH.CENTER, color=GREY)
-    p.paragraph_format.space_after = Pt(6)
+def references(doc, refs):
+    section_title(doc, None, "Referencias")
+    for i, ref in enumerate(refs, 1):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.left_indent = Cm(0.6)
+        p.paragraph_format.first_line_indent = Cm(-0.6)
+        p.paragraph_format.space_after = Pt(1)
+        set_font(p.add_run(f"[{i}]\t"), size=8)
+        set_font(p.add_run(ref), size=8)
 
 
-# --------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------- reporte principal
 def reporte_entrega():
     doc = base_doc()
+    cnt = Counter()
+    title_block(doc, "Monitor de Riesgo Académico Saber 11",
+                "Proyecto — Entrega 1 · Despliegue de Soluciones Analíticas · " + FECHA)
+    new_section(doc, 2)
 
-    t = para(doc, "Monitor de Riesgo Académico Saber 11", size=20, color=BLUE)
-    t.runs[0].bold = True
-    para(doc, "Proyecto — Entrega 1 · Despliegue de Soluciones Analíticas (MIAD)", size=11, color=GREY)
-    para(doc, "Equipo: Mateo Ríos · Harol Perafan · Sebastian Vivas   |   25 de octubre de 2026", size=10, color=GREY)
-    p = para(doc, "Repositorio Git: ", size=10)
-    p.add_run(REPO_URL)
-    p.add_run("   ·   Remoto DVC: ").font.size = Pt(10)
-    p.add_run(S3_URL)
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    set_font(p.add_run("Resumen—"), size=9, bold=True, italic=True)
+    set_font(p.add_run(
+        "Se propone un producto de datos para identificar, antes de presentar el examen, a los estudiantes y "
+        "colegios con mayor riesgo de obtener un puntaje global bajo en Saber 11. A partir de 532.788 registros "
+        "públicos del ICFES se construyó un pipeline reproducible versionado con Git y DVC sobre Amazon S3 y se "
+        "realizó una exploración orientada a la pregunta de negocio. La educación de la madre, la jornada escolar, "
+        "el acceso a computador e internet, el territorio y la naturaleza del colegio concentran el riesgo; por "
+        "ejemplo, la tasa de riesgo es 61 % en Chocó frente a 12 % en Bogotá. Con estos hallazgos se iteró la "
+        "maqueta de un tablero que combina diagnóstico territorial y predicción individual servida por una API."),
+        size=9, bold=True)
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p.paragraph_format.space_before, p.paragraph_format.space_after = Pt(4), Pt(2)
+    set_font(p.add_run("Palabras clave—"), size=9, bold=True, italic=True)
+    set_font(p.add_run("Saber 11, riesgo académico, aprendizaje supervisado, DVC, tablero, despliegue."),
+             size=9, bold=True)
 
-    # 1 -------------------------------------------------------------------------------
-    doc.add_heading("1. Problema y contexto", level=1)
-    para(doc, "El examen Saber 11 del ICFES evalúa a todos los estudiantes que terminan la educación media en Colombia "
-              "y su puntaje global (0–500) condiciona el acceso a la educación superior, a becas (p. ej. Generación E) y "
-              "a créditos educativos. Los resultados muestran brechas persistentes asociadas al contexto del estudiante: "
-              "en el periodo analizado, un estudiante de un colegio en Chocó tiene 5 veces más probabilidad de quedar en "
-              "el cuartil inferior que uno de Bogotá (61 % vs 12 %).")
-    para(doc, "Las secretarías de educación y los rectores cuentan con recursos limitados para programas de refuerzo "
-              "(preparación pre-Saber, tutorías, conectividad). Hoy la focalización se hace con los resultados del año "
-              "anterior, es decir, cuando el estudiante ya presentó la prueba. El problema es la falta de una herramienta "
-              "que, con información disponible antes del examen (características del hogar y del colegio), identifique "
-              "a tiempo a los estudiantes y colegios con mayor riesgo de bajo desempeño.")
-    para(doc, "Un modelo supervisado entrenado con los resultados históricos permite estimar ese riesgo para cada "
-              "estudiante de grado 11 al inicio del año escolar. Combinado con un tablero descriptivo, convierte los datos "
-              "abiertos del ICFES en una lista priorizada y explicada de a quién y dónde intervenir.",
-         bold_prefix="Por qué un modelo es útil: ")
+    # I ----------------------------------------------------------------------------------
+    section_title(doc, "I", "Introducción: problema y contexto")
+    body(doc, "El examen Saber 11 del ICFES evalúa a todos los estudiantes que terminan la educación media en "
+              "Colombia. Su puntaje global (0–500) condiciona el acceso a la educación superior, a becas y a "
+              "créditos educativos [1]. Los resultados muestran brechas persistentes asociadas al contexto del "
+              "estudiante: en el periodo analizado, un estudiante de un colegio en Chocó tiene cinco veces más "
+              "probabilidad de quedar en el cuartil inferior que uno de Bogotá (61 % vs. 12 %).")
+    body(doc, "Las secretarías de educación y los rectores cuentan con recursos limitados para programas de "
+              "refuerzo (preparación pre-Saber, tutorías, conectividad). Hoy la focalización se hace con los "
+              "resultados del año anterior, es decir, cuando el estudiante ya presentó la prueba. El problema es la "
+              "falta de una herramienta que, con información disponible antes del examen (características del "
+              "hogar y del colegio), identifique a tiempo a los estudiantes y colegios con mayor riesgo de bajo "
+              "desempeño.")
+    body(doc, "Un modelo supervisado entrenado con los resultados históricos permite estimar ese riesgo para cada "
+              "estudiante de grado 11 al inicio del año escolar. Combinado con un tablero descriptivo, convierte "
+              "los datos abiertos del ICFES en una lista priorizada y explicada de a quién y dónde intervenir.")
 
-    # 2 -------------------------------------------------------------------------------
-    doc.add_heading("2. Pregunta de negocio y alcance", level=1)
-    p = para(doc, "¿Qué estudiantes (y colegios/municipios) tienen mayor riesgo de obtener un puntaje global bajo en "
-                  "Saber 11, dadas sus características socioeconómicas y del colegio, para priorizar intervenciones de "
-                  "refuerzo?", italic=True)
-    p.runs[0].bold = True
+    # II ---------------------------------------------------------------------------------
+    section_title(doc, "II", "Pregunta de negocio y alcance")
+    body(doc, "¿Qué estudiantes (y colegios/municipios) tienen mayor riesgo de obtener un puntaje global bajo en "
+              "Saber 11, dadas sus características socioeconómicas y del colegio, para priorizar intervenciones "
+              "de refuerzo?", lead="Pregunta de negocio:")
     bullets(doc, [
-        ("Usuarios: ", "secretarías de educación departamentales/municipales y rectores de colegios."),
-        ("Componente descriptivo: ", "tablero con la distribución del riesgo por territorio, tipo de colegio y "
-                                     "factores del hogar, y ranking de municipios/colegios prioritarios."),
-        ("Componente predictivo: ", "(i) clasificador de riesgo, definido como puntaje global < percentil 25 "
-                                    "nacional (210 puntos); (ii) regresor del puntaje global como complemento. "
-                                    "Solo con variables conocidas antes de la prueba."),
-        ("Entregable final: ", "modelo empaquetado, API de inferencia (FastAPI) y tablero (Dash) que consume la API, "
-                               "desplegados en contenedores Docker en AWS."),
-        ("Fuera del alcance: ", "inferencia causal, diseño o evaluación de las intervenciones, datos individuales "
-                                "no públicos (notas, asistencia) y otras pruebas (Saber 3°, 5°, 9°, Pro)."),
-        ("Criterio de éxito: ", "AUC ≥ 0,75 y recall ≥ 0,70 en la clase de riesgo sobre un conjunto de prueba "
-                                "separado; tablero utilizable con filtros por territorio."),
+        ("Usuarios:", "secretarías de educación departamentales y municipales, y rectores de colegios."),
+        ("Componente descriptivo:", "tablero con la distribución del riesgo por territorio, tipo de colegio y "
+                                    "factores del hogar, y ranking de municipios y colegios prioritarios."),
+        ("Componente predictivo:", "clasificador de riesgo (puntaje global < percentil 25 nacional = 210) y "
+                                   "regresor del puntaje global, usando solo variables conocidas antes de la "
+                                   "prueba."),
+        ("Entregable final:", "modelo empaquetado, API de inferencia con FastAPI [5] y tablero con Dash [6] "
+                              "que consume la API, desplegados en contenedores Docker [7] en AWS."),
+        ("Fuera del alcance:", "inferencia causal, diseño o evaluación de las intervenciones, datos "
+                               "individuales no públicos y otras pruebas del ICFES."),
+        ("Criterio de éxito:", "AUC ≥ 0,75 y recall ≥ 0,70 en la clase de riesgo sobre un conjunto de prueba "
+                               "separado; tablero utilizable con filtros territoriales."),
     ])
 
-    # 3 -------------------------------------------------------------------------------
-    doc.add_heading("3. Conjunto de datos", level=1)
-    para(doc, "Se usa el conjunto «Resultados únicos Saber 11» publicado por el ICFES en el portal de datos abiertos "
-              "datos.gov.co (id kgxf-xxbe, API Socrata). Contiene un registro por estudiante evaluado desde 2010 con "
-              "51 columnas. Para esta entrega se toma el periodo más reciente publicado (20224, calendario A y B): "
-              "1.065.888 filas descargadas, que corresponden a 532.788 estudiantes únicos, 10.378 colegios y 1.114 "
-              "municipios. La descarga es reproducible mediante el script src/download_data.py, que selecciona 35 "
-              "columnas relevantes vía SoQL.")
-    table(doc, ["Grupo", "Variables (ejemplos)", "Uso"], [
-        ["Estudiante", "estu_genero, edad (derivada de la fecha de nacimiento), depto/municipio de residencia", "Predictor"],
-        ["Hogar (fami_*)", "estrato, educación de madre y padre, personas y cuartos del hogar, internet, computador, "
-                           "automóvil, lavadora", "Predictor"],
-        ["Colegio (cole_*)", "naturaleza (oficial/no oficial), zona, jornada, calendario, bilingüe, carácter, "
-                             "género, departamento y municipio, código DANE", "Predictor / filtro"],
-        ["Resultados (punt_*)", "lectura crítica, matemáticas, c. naturales, sociales, inglés (0–100), global (0–500)",
-         "Objetivo / descriptivo"],
-        ["Derivada", "riesgo_bajo_desempeno = 1 si punt_global < P25 (210)", "Objetivo"],
-    ], widths=[3.2, 10.3, 3.5])
-    para(doc, "Se encontraron tres problemas de calidad que el pipeline (src/clean_data.py) resuelve: "
-              "(1) la fuente publica cada registro dos veces, lo que se verificó contra la API con count(distinct "
-              "estu_consecutivo) = 532.792, y se deduplica por estudiante; (2) cuatro pruebas tienen puntaje global 0 "
-              "(anuladas) y se excluyen; (3) las variables del hogar tienen 4–7 % de nulos y cole_bilingue 18 %. Estos "
-              "nulos se conservan para imputarlos como categoría «Sin información» en el modelado (Figura 1).",
-         bold_prefix="Calidad de datos. ")
+    # III --------------------------------------------------------------------------------
+    section_title(doc, "III", "Conjunto de datos")
+    body(doc, "Se usa el conjunto «Resultados únicos Saber 11» publicado por el ICFES en datos.gov.co [1] (id "
+              "kgxf-xxbe, API Socrata). Contiene un registro por estudiante evaluado desde 2010 con 51 columnas. "
+              "Para esta entrega se toma el periodo más reciente publicado (20224): 1.065.888 filas "
+              "descargadas, que corresponden a 532.788 estudiantes únicos, 10.378 colegios y 1.114 municipios. "
+              "La descarga es reproducible con src/download_data.py, que selecciona 35 columnas vía SoQL. La "
+              "Tabla I resume las variables.")
+    table(doc, cnt, "Grupos de variables", ["Grupo", "Variables", "Uso"], [
+        ["Estudiante", "género, edad (derivada), residencia", "Predictor"],
+        ["Hogar", "estrato, educación madre y padre, personas, cuartos, internet, computador, "
+                  "automóvil, lavadora", "Predictor"],
+        ["Colegio", "naturaleza, zona, jornada, calendario, bilingüe, carácter, depto., municipio",
+         "Predictor / filtro"],
+        ["Resultados", "lectura, matemáticas, naturales, sociales, inglés (0–100), global (0–500)",
+         "Objetivo"],
+        ["Derivada", "riesgo = 1 si global < P25 (210)", "Objetivo"],
+    ], widths=[1.6, 4.9, 1.9])
+    body(doc, "El pipeline (src/clean_data.py) resuelve tres problemas. Primero, la fuente publica cada registro "
+              "dos veces, lo que se verificó contra la API con count(distinct estu_consecutivo) = 532.792, y se "
+              "deduplica por estudiante. Segundo, cuatro pruebas tienen puntaje 0 (anuladas) y se excluyen. "
+              "Tercero, las variables del hogar tienen 4–7 % de nulos y cole_bilingue 18 %; se conservarán como "
+              "categoría «Sin información».", lead="Calidad de datos.")
 
-    # 4 -------------------------------------------------------------------------------
-    doc.add_heading("4. Exploración de los datos", level=1)
-    para(doc, "La exploración completa está en notebooks/01_eda.ipynb. Se presentan los resultados más relevantes "
-              "para la pregunta de negocio.")
-    figure_pair(doc, FIG / "01_nulos.png", FIG / "02_dist_global.png",
-                "Figura 1. Variables con datos faltantes (izq.) y distribución del puntaje global con el umbral de "
-                "riesgo P25 = 210 (der.).")
-    para(doc, "El puntaje global tiene media 250 y desviación estándar 52, con una distribución aproximadamente normal "
-              "y ligeramente sesgada a la derecha (máx. 477). Definir el riesgo como el cuartil inferior genera una "
-              "clase positiva del 25 %. El desbalance es moderado, por lo que se evaluará con AUC y recall y se usará "
-              "ponderación de clases. Los cinco puntajes por área tienen correlaciones de 0,68 a 0,81 con los demás "
-              "y casi determinan el global, así que no se usarán como predictores: serían fuga de información.",
-         bold_prefix="Variable objetivo. ")
-    figure_pair(doc, FIG / "07_riesgo_edu_madre.png", FIG / "08_riesgo_recursos.png",
-                "Figura 2. Tasa de riesgo por nivel educativo de la madre (izq.) y por recursos del hogar (der.). "
-                "Línea punteada = 25 % nacional.")
-    para(doc, "La educación de la madre es el factor con mayor asociación con el puntaje (η² = 0,13). El riesgo baja "
-              "de forma monótona de 55 % (sin educación) a 6 % (posgrado). Los estudiantes sin internet o sin "
-              "computador en casa tienen aproximadamente el doble de riesgo (39 % y 34 %) que quienes sí los tienen "
-              "(19 % y 16 %). Estas variables son buenas candidatas para el modelo y apuntan a intervenciones "
-              "concretas, como la conectividad.",
-         bold_prefix="Factores del hogar. ")
-    figure_pair(doc, FIG / "09_riesgo_colegio.png", FIG / "10_riesgo_jornada.png",
-                "Figura 3. Tasa de riesgo según características del colegio (izq.) y jornada (der.).")
-    para(doc, "Las jornadas nocturna y sabatina, que atienden principalmente a jóvenes en extraedad y adultos, tienen "
-              "más de 50 % de riesgo, frente a 12 % en la jornada completa. Los colegios rurales (40 %) y los oficiales "
-              "(28 % vs 16 % en los no oficiales) también concentran el riesgo. Calendario y bilingüismo casi no "
-              "discriminan (η² ≈ 0).",
-         bold_prefix="Factores del colegio. ")
-    figure_pair(doc, FIG / "12_riesgo_depto.png", FIG / "11_heat_estrato_naturaleza.png",
-                "Figura 4. Tasa de riesgo por departamento (izq.) y por estrato × naturaleza del colegio (der.).",
-                width_cm=8.0)
-    para(doc, "La brecha territorial es muy marcada: Chocó (61 %), Vaupés (54 %), Amazonas (51 %) y La Guajira (47 %) "
-              "frente a Boyacá (12 %) y Bogotá (12 %). Dentro de los departamentos el riesgo se concentra aún más: 115 "
-              "municipios con al menos 100 evaluados y 1.172 colegios tienen 50 % o más de estudiantes en riesgo (p. ej. "
-              "Bojayá 98 % y Timbiquí 86 %). Por eso el tablero debe permitir bajar a nivel de municipio y colegio.",
-         bold_prefix="Territorio. ")
-    para(doc, "El riesgo por estrato no es monótono. En los colegios no oficiales baja con el estrato, como se espera "
-              "(46 % → 12 %), pero en los oficiales sube en los estratos 4–6 (40–64 %). Se verificó que la anomalía no "
-              "la explican las jornadas de adultos ni la edad, por lo que se atribuye a errores de autorreporte. El "
-              "estrato se usará junto con variables más confiables y no de forma aislada.",
-         bold_prefix="Hallazgo de calidad. ")
-    figure(doc, FIG / "14_eta2.png", 11.5,
-           "Figura 5. Proporción de la varianza del puntaje global explicada por cada variable (η²).")
-    para(doc, "Las variables con más poder explicativo son la educación de los padres, la jornada, el acceso a "
-              "computador e internet, el departamento y la naturaleza del colegio. Serán el núcleo del modelo. Género, "
-              "calendario, bilingüismo y carácter aportan poco. Al combinar varias variables débilmente correlacionadas "
-              "se espera superar el η² individual, lo que justifica un modelo multivariado (regresión logística como "
-              "línea base y gradient boosting).",
-         bold_prefix="Selección preliminar de variables. ")
+    # IV ---------------------------------------------------------------------------------
+    section_title(doc, "IV", "Exploración de los datos")
+    body(doc, "La exploración completa está en notebooks/01_eda.ipynb. Se presentan los resultados más "
+              "relevantes para la pregunta de negocio.")
+    subsection(doc, "A", "Variable objetivo")
+    f = figure(doc, cnt, FIG / "02_dist_global.png",
+               "Distribución del puntaje global con el umbral de riesgo P25 = 210 y la media.")
+    body(doc, f"El puntaje global tiene media 250 y desviación estándar 52 (Fig. {f}). Su distribución es "
+              "aproximadamente normal y ligeramente sesgada a la derecha. Definir el riesgo como el cuartil "
+              "inferior genera una clase positiva del 25 %, un desbalance moderado: se evaluará con AUC y recall "
+              "y se usará ponderación de clases. Los puntajes por área tienen correlaciones de 0,68 a 0,81 entre "
+              "sí y casi determinan el global, por lo que no se usarán como predictores (fuga de información).")
+    subsection(doc, "B", "Factores del hogar")
+    f1 = figure(doc, cnt, FIG / "07_riesgo_edu_madre.png",
+                "Tasa de riesgo por nivel educativo de la madre. Línea punteada: 25 % nacional.")
+    f2 = figure(doc, cnt, FIG / "08_riesgo_recursos.png", "Tasa de riesgo según recursos del hogar.")
+    body(doc, f"La educación de la madre es el factor con mayor asociación con el puntaje (η² = 0,13). El riesgo "
+              f"baja de forma monótona de 55 % (sin educación) a 6 % (posgrado) (Fig. {f1}). Los estudiantes sin "
+              f"internet o sin computador tienen aproximadamente el doble de riesgo (39 % y 34 %) que quienes sí "
+              f"los tienen (19 % y 16 %) (Fig. {f2}). Esto apunta a intervenciones concretas, como la "
+              "conectividad.")
+    subsection(doc, "C", "Factores del colegio")
+    f1 = figure(doc, cnt, FIG / "09_riesgo_colegio.png", "Tasa de riesgo según características del colegio.")
+    f2 = figure(doc, cnt, FIG / "10_riesgo_jornada.png", "Tasa de riesgo por jornada escolar.")
+    body(doc, f"Las jornadas nocturna y sabatina, que atienden principalmente a jóvenes en extraedad y adultos, "
+              f"tienen más de 50 % de riesgo, frente a 12 % en la jornada completa (Fig. {f2}). Los colegios "
+              f"rurales (40 %) y los oficiales (28 % vs. 16 %) también concentran el riesgo (Fig. {f1}). "
+              "Calendario y bilingüismo casi no discriminan (η² ≈ 0).")
+    subsection(doc, "D", "Dimensión territorial")
+    f = figure(doc, cnt, FIG / "12_riesgo_depto.png", "Tasa de riesgo por departamento del colegio.")
+    body(doc, f"La brecha territorial es muy marcada (Fig. {f}): Chocó (61 %), Vaupés (54 %), Amazonas (51 %) y "
+              "La Guajira (47 %) frente a Boyacá y Bogotá (12 %). Dentro de los departamentos el riesgo se "
+              "concentra aún más: 115 municipios con al menos 100 evaluados y 1.172 colegios tienen 50 % o más de "
+              "estudiantes en riesgo (p. ej., Bojayá 98 % y Timbiquí 86 %). Por eso el tablero debe permitir "
+              "bajar a nivel de municipio y colegio.")
+    subsection(doc, "E", "Hallazgo de calidad: estrato")
+    f = figure(doc, cnt, FIG / "11_heat_estrato_naturaleza.png",
+               "Tasa de riesgo (%) por estrato y naturaleza del colegio.")
+    body(doc, f"El riesgo por estrato no es monótono (Fig. {f}). En los colegios no oficiales baja con el "
+              "estrato (46 % → 12 %), pero en los oficiales sube en los estratos 4–6 (40–64 %). Se verificó que no "
+              "lo explican las jornadas de adultos ni la edad, por lo que se atribuye a errores de autorreporte. "
+              "El estrato se usará junto con variables más confiables y no de forma aislada.")
+    subsection(doc, "F", "Selección preliminar de variables")
+    f = figure(doc, cnt, FIG / "14_eta2.png",
+               "Proporción de la varianza del puntaje global explicada por cada variable (η²).")
+    body(doc, f"Las variables con más poder explicativo (Fig. {f}) son la educación de los padres, la jornada, el "
+              "acceso a computador e internet, el departamento y la naturaleza del colegio, que serán el núcleo "
+              "del modelo. Género, calendario, bilingüismo y carácter aportan poco. Al combinar variables "
+              "débilmente correlacionadas se espera superar el η² individual, lo que justifica un modelo "
+              "multivariado: regresión logística como línea base y gradient boosting [4], con explicaciones "
+              "SHAP [3].")
 
-    # 5 -------------------------------------------------------------------------------
-    doc.add_heading("5. Maqueta del prototipo", level=1)
-    para(doc, "El tablero tiene tres pestañas. Diagnóstico territorial responde dónde y a quién intervenir con datos "
-              "descriptivos. Predicción de riesgo consume el modelo a través de la API. Priorización de colegios "
-              "permite cargar un listado por lotes y exportar la lista priorizada. Los números de la maqueta son "
-              "cifras reales del EDA; solo los valores del modelo (probabilidad y contribuciones SHAP) son "
+    # V ----------------------------------------------------------------------------------
+    section_title(doc, "V", "Maqueta del prototipo")
+    body(doc, "El tablero tiene tres pestañas. «Diagnóstico territorial» responde dónde y a quién intervenir con "
+              "datos descriptivos. «Predicción de riesgo» consume el modelo a través de la API. «Priorización de "
+              "colegios» permite cargar un listado por lotes y exportar la lista priorizada. Las cifras de la "
+              "maqueta son reales (EDA); solo los valores del modelo (probabilidad y contribuciones SHAP) son "
               "ilustrativos.")
-    figure(doc, MOCK / "mockup_diagnostico.png", 16.5,
-           "Figura 6. Vista 1 — Diagnóstico territorial: filtros (1), KPIs (2), riesgo por departamento (3), "
-           "factores asociados (4), municipios prioritarios (5) e interacción estrato × naturaleza (6).")
-    figure(doc, MOCK / "mockup_prediccion.png", 16.5,
-           "Figura 7. Vista 2 — Predicción: perfil del estudiante (7), probabilidad de riesgo y puntaje estimado "
-           "(8), factores explicativos (9), contrato de la API (10) y predicción por lotes (11).")
-    para(doc, "La versión inicial de la maqueta (Semana 2) se ajustó con los hallazgos del EDA en cuatro puntos. "
-              "(a) Se agregó el filtro de jornada y se resaltó en los factores, por su alto poder explicativo. "
-              "(b) El formulario de predicción excluye los puntajes por área para evitar fuga de información. "
-              "(c) Se añadió el nivel municipal y la lista de municipios prioritarios, porque el riesgo se concentra "
-              "por debajo del nivel departamental. (d) Se incluyó la matriz estrato × naturaleza para hacer visible la "
-              "inconsistencia del estrato.",
-         bold_prefix="Iteración según los datos. ")
+    body(doc, "La versión inicial (Semana 2) se ajustó con el EDA en cuatro puntos: (a) se agregó el filtro de "
+              "jornada por su alto poder explicativo; (b) el formulario excluye los puntajes por área para evitar "
+              "fuga de información; (c) se añadió el nivel municipal, porque el riesgo se concentra por debajo del "
+              "nivel departamental; (d) se incluyó la matriz estrato × naturaleza para hacer visible la "
+              "inconsistencia del estrato.", lead="Iteración según los datos.")
+    new_section(doc, 1)
+    figure(doc, cnt, MOCK / "mockup_diagnostico.png",
+           "Vista 1, diagnóstico territorial: filtros (1), KPIs (2), riesgo por departamento (3), factores "
+           "asociados (4), municipios prioritarios (5) e interacción estrato × naturaleza (6).", width=FULL_W)
+    figure(doc, cnt, MOCK / "mockup_prediccion.png",
+           "Vista 2, predicción: perfil del estudiante (7), probabilidad de riesgo y puntaje estimado (8), "
+           "factores explicativos (9), contrato de la API (10) y predicción por lotes (11).", width=FULL_W)
+    new_section(doc, 2)
 
-    # 6 -------------------------------------------------------------------------------
-    doc.add_heading("6. Repositorios de código (Git) y datos (DVC)", level=1)
-    p = para(doc, "Código en GitHub: ")
-    p.add_run(REPO_URL)
-    p.add_run(". Datos versionados con DVC en un remoto S3 (")
-    p.add_run(S3_URL)
-    p.add_run("). Git solo almacena los metadatos (dvc.yaml, dvc.lock, .dvc/config); los archivos de datos "
-              "(data/raw/saber11.csv de 292 MB y data/processed/saber11_clean.parquet de 15 MB) se suben con dvc push. "
-              "El pipeline DVC tiene dos etapas, download y clean, y se reproduce con «dvc repro». Cualquier integrante "
-              "obtiene los datos con «dvc pull».")
-    table(doc, ["Ruta", "Contenido"], [
-        ["src/download_data.py", "Descarga paginada desde la API Socrata con reintentos"],
-        ["src/clean_data.py", "Deduplicación, tipos, edad, normalización y variable objetivo"],
-        ["dvc.yaml / dvc.lock", "Pipeline download → clean y hashes de los datos versionados"],
-        ["notebooks/01_eda.ipynb", "Exploración de datos (14 figuras en reports/figures/)"],
+    # VI ---------------------------------------------------------------------------------
+    section_title(doc, "VI", "Repositorios de código y datos")
+    body(doc, f"El código está en GitHub ({REPO_URL}). Los datos se versionan con DVC [2] en un remoto Amazon S3 "
+              f"({S3_URL}). Git solo almacena los metadatos (dvc.yaml, dvc.lock y .dvc/config); los archivos de "
+              "datos (CSV crudo de 292 MB y Parquet limpio de 15 MB) se suben con «dvc push». El pipeline DVC "
+              "tiene dos etapas, download y clean, y se reproduce con «dvc repro». Cualquier integrante obtiene "
+              "los datos con «dvc pull». La Tabla II resume la estructura del repositorio.")
+    table(doc, cnt, "Estructura del repositorio", ["Ruta", "Contenido"], [
+        ["src/download_data.py", "Descarga paginada desde la API Socrata"],
+        ["src/clean_data.py", "Deduplicación, tipos, edad y variable objetivo"],
+        ["dvc.yaml / dvc.lock", "Pipeline download → clean y hashes de datos"],
+        ["notebooks/01_eda.ipynb", "Exploración de datos (14 figuras)"],
         ["mockup/", "Maqueta HTML del tablero y capturas"],
-        ["docs/", "Reportes de la entrega y su script generador"],
-    ], widths=[5, 12])
-    p = para(doc, "")
-    placeholder(p, "[Insertar capturas: (1) historial de commits en GitHub con los tres integrantes; "
-                   "(2) salida de «dvc push» / «dvc status -c»; (3) bucket S3 con los archivos de DVC.]")
+        ["docs/", "Reportes y script generador"],
+    ], widths=[3.4, 5.0])
+    body(doc, f"Las Figs. {cnt.fig + 1}–{cnt.fig + 3} evidencian el uso de ambos repositorios: los commits del "
+              "proyecto, el almacenamiento de los datos en S3 y la sincronización entre la caché local y el "
+              "remoto.")
+    new_section(doc, 1)
+    figure_pair(doc, cnt, (CAP / "github_commits.png", "Historial de commits en GitHub (rama main)."),
+                (CAP / "s3_bucket.png", "Remoto DVC en Amazon S3: bucket mateorios2002-dvcstore, prefijo saber11/."))
+    figure(doc, cnt, CAP / "dvc_push_status.png",
+           "Sincronización de los datos con el remoto: «dvc push» y «dvc status -c».", width=FULL_W)
+    new_section(doc, 2)
 
-    # 7 -------------------------------------------------------------------------------
-    doc.add_heading("7. Próximos pasos", level=1)
-    bullets(doc, [
-        "Ampliar los datos a periodos anteriores (20194) para validar la estabilidad temporal del modelo.",
-        "Entrenar la línea base (regresión logística) y gradient boosting con seguimiento de experimentos en MLflow.",
-        "Construir la API (FastAPI) y el tablero (Dash), contenerizarlos con Docker y desplegarlos en AWS.",
+    # VII --------------------------------------------------------------------------------
+    section_title(doc, "VII", "Conclusiones y trabajo futuro")
+    body(doc, "Los datos abiertos del ICFES permiten responder la pregunta de negocio: el riesgo de bajo "
+              "desempeño se concentra en perfiles del hogar, del colegio y del territorio identificables antes de "
+              "la prueba, lo que justifica un modelo predictivo de focalización. Las siguientes entregas "
+              "abordarán: (1) ampliar los datos a periodos anteriores para validar la estabilidad temporal; "
+              "(2) entrenar la línea base y gradient boosting con seguimiento de experimentos en MLflow; y "
+              "(3) construir la API y el tablero, contenerizarlos con Docker y desplegarlos en AWS.")
+
+    references(doc, [
+        "ICFES, “Resultados únicos Saber 11,” Datos Abiertos Colombia, 2024. [En línea]. Disponible: "
+        "https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe",
+        "Iterative, “DVC: Data Version Control.” [En línea]. Disponible: https://dvc.org",
+        "S. M. Lundberg y S.-I. Lee, “A unified approach to interpreting model predictions,” en Proc. 31st "
+        "Int. Conf. Neural Inf. Process. Syst. (NeurIPS), 2017, pp. 4765–4774.",
+        "T. Chen y C. Guestrin, “XGBoost: A scalable tree boosting system,” en Proc. 22nd ACM SIGKDD Int. Conf. "
+        "Knowl. Discov. Data Min., 2016, pp. 785–794.",
+        "S. Ramírez, “FastAPI.” [En línea]. Disponible: https://fastapi.tiangolo.com",
+        "Plotly Technologies Inc., “Dash.” [En línea]. Disponible: https://dash.plotly.com",
+        "D. Merkel, “Docker: Lightweight Linux containers for consistent development and deployment,” "
+        "Linux J., vol. 2014, no. 239, art. 2, 2014.",
     ])
+    new_section(doc, 2)  # salto continuo final: equilibra las columnas de la última página
 
     out = OUT / "reporte_entrega1.docx"
     doc.save(out)
     print("Guardado", out)
 
 
-# --------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------- reporte de equipo
 def reporte_equipo():
     doc = base_doc()
-    t = para(doc, "Reporte de trabajo en equipo — Entrega 1", size=16, color=BLUE)
-    t.runs[0].bold = True
-    para(doc, "Proyecto: Monitor de Riesgo Académico Saber 11 · Despliegue de Soluciones Analíticas (MIAD) · "
-              "25 de octubre de 2026", size=10, color=GREY)
-    para(doc, "El equipo definió los ítems de trabajo en la Semana 2, los repartió por afinidad y fijó revisiones "
-              "internas antes de cada entrega. Cada integrante sube su trabajo al repositorio con commits propios, así "
-              "que el historial de GitHub respalda esta distribución.")
-    table(doc, ["Integrante", "Responsabilidades", "Evidencia en el repositorio"], [
-        ["Mateo Ríos",
-         "Coordinación del equipo y del cronograma. Configuración del repositorio Git y de DVC con remoto S3. "
-         "Pipeline de datos (descarga desde la API Socrata, limpieza y variable objetivo). Integración y redacción "
-         "del reporte.",
-         "src/download_data.py, src/clean_data.py, dvc.yaml, dvc.lock, .dvc/config, README.md, docs/"],
-        ["Harol Perafan",
-         "Exploración de los factores socioeconómicos y del colegio (estrato, educación de los padres, recursos del "
-         "hogar, naturaleza, zona, jornada). Análisis de la anomalía del estrato. Selección preliminar de "
-         "variables (η²).",
-         "notebooks/01_eda.ipynb (secciones 3, 4 y 6), reports/figures/05–11, 14"],
-        ["Sebastian Vivas",
-         "Calidad de datos y distribución del puntaje. Exploración geográfica (departamentos, municipios y "
-         "colegios prioritarios). Diseño de la maqueta del tablero y su iteración con los hallazgos del EDA.",
-         "notebooks/01_eda.ipynb (secciones 1, 2 y 5), reports/figures/01–04, 12–13, mockup/"],
-    ], widths=[3.0, 8.4, 5.6], size=9.5)
-    para(doc, "Actividades conjuntas: ", bold_prefix=None).runs[0].bold = True
+    cnt = Counter()
+    title_block(doc, "Reporte de Trabajo en Equipo",
+                "Proyecto Monitor de Riesgo Académico Saber 11 — Entrega 1 · " + FECHA)
+    body(doc, "El equipo definió los ítems de trabajo en la Semana 2, los repartió por afinidad y fijó revisiones "
+              "internas antes de la entrega. Cada integrante sube su trabajo al repositorio con commits propios, "
+              f"de modo que el historial de GitHub ({REPO_URL}) respalda la distribución de la Tabla I.")
+    table(doc, cnt, "Responsabilidades individuales",
+          ["Integrante", "Responsabilidades", "Evidencia en el repositorio"], [
+              ["Mateo Ríos",
+               "Coordinación del equipo y del cronograma. Configuración del repositorio Git y de DVC con remoto "
+               "S3. Pipeline de datos (descarga desde la API Socrata, limpieza y variable objetivo). Integración "
+               "y redacción del reporte.",
+               "src/download_data.py, src/clean_data.py, dvc.yaml, dvc.lock, .dvc/config, README.md, docs/"],
+              ["Harol Perafan",
+               "Exploración de los factores socioeconómicos y del colegio (estrato, educación de los padres, "
+               "recursos del hogar, naturaleza, zona, jornada). Análisis de la anomalía del estrato. Selección "
+               "preliminar de variables (η²).",
+               "notebooks/01_eda.ipynb (secciones 3, 4 y 6), reports/figures/05–11 y 14"],
+              ["Sebastian Vivas",
+               "Calidad de datos y distribución del puntaje. Exploración geográfica (departamentos, municipios "
+               "y colegios prioritarios). Diseño de la maqueta del tablero y su iteración con los hallazgos del "
+               "EDA.",
+               "notebooks/01_eda.ipynb (secciones 1, 2 y 5), reports/figures/01–04 y 12–13, mockup/"],
+          ], widths=[2.6, 8.6, 6.0], size=9)
+    section_title(doc, None, "Actividades conjuntas")
     bullets(doc, [
-        "Selección del problema y de la pregunta de negocio entre las alternativas exploradas en la Semana 1.",
-        "Discusión de los hallazgos del EDA y de su impacto en el alcance, el modelo y la maqueta.",
-        "Revisión cruzada del reporte final antes de la entrega.",
+        (None, "Selección del problema y de la pregunta de negocio entre las alternativas exploradas en la "
+               "Semana 1."),
+        (None, "Discusión de los hallazgos del EDA y de su impacto en el alcance, el modelo y la maqueta."),
+        (None, "Revisión cruzada del reporte final antes de la entrega."),
     ])
-    p = para(doc, "")
-    placeholder(p, "[Ajustar la distribución si difiere de lo realizado y agregar fechas de las reuniones de "
-                   "seguimiento.]")
+    section_title(doc, None, "Reuniones de seguimiento")
+    body(doc, f"El {FECHA} el equipo se reunió para revisar los resultados de la exploración de datos, validar "
+              "la maqueta del tablero, confirmar la distribución de responsabilidades y aprobar el reporte final "
+              "de la Entrega 1.", indent=False)
     out = OUT / "reporte_equipo.docx"
     doc.save(out)
     print("Guardado", out)
