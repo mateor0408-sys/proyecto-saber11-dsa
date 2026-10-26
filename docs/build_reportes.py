@@ -19,7 +19,7 @@ OUT = ROOT / "docs"
 BLUE = RGBColor(0x0D, 0x36, 0x6B)
 GREY = RGBColor(0x52, 0x51, 0x4E)
 
-REPO_URL = "[URL del repositorio GitHub]"
+REPO_URL = "https://github.com/mateor0408-sys/proyecto-saber11-dsa"
 S3_URL = "s3://mateorios2002-dvcstore/saber11"
 
 
@@ -132,9 +132,9 @@ def reporte_entrega():
     para(doc, "Proyecto — Entrega 1 · Despliegue de Soluciones Analíticas (MIAD)", size=11, color=GREY)
     para(doc, "Equipo: Mateo Ríos · Harol Perafan · Sebastian Vivas   |   25 de octubre de 2026", size=10, color=GREY)
     p = para(doc, "Repositorio Git: ", size=10)
-    placeholder(p, REPO_URL)
+    p.add_run(REPO_URL)
     p.add_run("   ·   Remoto DVC: ").font.size = Pt(10)
-    placeholder(p, S3_URL)
+    p.add_run(S3_URL)
 
     # 1 -------------------------------------------------------------------------------
     doc.add_heading("1. Problema y contexto", level=1)
@@ -274,9 +274,9 @@ def reporte_entrega():
     # 6 -------------------------------------------------------------------------------
     doc.add_heading("6. Repositorios de código (Git) y datos (DVC)", level=1)
     p = para(doc, "Código en GitHub: ")
-    placeholder(p, REPO_URL)
+    p.add_run(REPO_URL)
     p.add_run(". Datos versionados con DVC en un remoto S3 (")
-    placeholder(p, S3_URL)
+    p.add_run(S3_URL)
     p.add_run("). Git solo almacena los metadatos (dvc.yaml, dvc.lock, .dvc/config); los archivos de datos "
               "(data/raw/saber11.csv de 292 MB y data/processed/saber11_clean.parquet de 15 MB) se suben con dvc push. "
               "El pipeline DVC tiene dos etapas, download y clean, y se reproduce con «dvc repro». Cualquier integrante "
