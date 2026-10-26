@@ -6,3 +6,4 @@ seaborn
 dvc[s3]
 jupyter
 nbconvert
+python-docx
