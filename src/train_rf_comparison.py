@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
 from train_models import FEATURES, SEED, prep, metrics, threshold_for
 
 root = Path(__file__).resolve().parents[1]
@@ -15,14 +16,22 @@ out = root/'reports/modeling'
 data = root/'data/processed/saber11_clean.parquet'
 manifest = json.loads((out/'manifest.json').read_text())
 assert hashlib.sha256(data.read_bytes()).hexdigest() == manifest['sha256']
-split = np.load(out/'split_indices.npz')
-train, val = split['train'], split['validation']
 df = pd.read_parquet(data)
+y = (df.punt_global < 210).astype(int)
+split_path = out/'split_indices.npz'
+if not split_path.exists():
+    # Reproduce exactamente la particion de train_models.py con los mismos datos.
+    train_idx, other = train_test_split(np.arange(len(df)), test_size=.4,
+                                       stratify=y, random_state=SEED)
+    val_idx, test_idx = train_test_split(other, test_size=.5,
+                                       stratify=y.iloc[other], random_state=SEED)
+    np.savez_compressed(split_path, train=train_idx, validation=val_idx, test=test_idx)
+split = np.load(split_path)
+train, val = split['train'], split['validation']
 X = df[FEATURES].copy()
 X['edad'] = X['edad'].astype(float)
 for c in FEATURES[1:]:
     X[c] = X[c].astype(object).where(X[c].notna(), np.nan)
-y = (df.punt_global < 210).astype(int)
 params = dict(n_estimators=150, max_depth=16, min_samples_leaf=15,
               max_samples=.35, class_weight='balanced', random_state=SEED, n_jobs=4)
 pipe = Pipeline([('prepare', prep()), ('model', RandomForestClassifier(**params))])
