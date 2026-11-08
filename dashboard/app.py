@@ -223,7 +223,24 @@ form_fields = [c for c in ["cole_depto_ubicacion", "cole_naturaleza", "cole_area
                            "fami_educacionmadre", "fami_educacionpadre", "fami_estratovivienda",
                            "fami_personashogar", "fami_tieneinternet", "fami_tienecomputador",
                            "fami_tieneautomovil", "fami_cuartoshogar", "cole_caracter", "estu_genero"]]
+pred_help = html.Div([
+    html.H3(["Cómo usar esta pestaña ", html.Small("· estimación del riesgo para un perfil de estudiante")]),
+    html.Ol([
+        html.Li("Elija en «Perfil del estudiante» las características que se conocen antes de la prueba."),
+        html.Li(["Pulse ", html.B("Calcular riesgo"), "."]),
+        html.Li("Lea la probabilidad, el nivel de riesgo, el puntaje estimado y los factores que más pesan."),
+    ]),
+    html.Div([
+        html.Span([html.Span("BAJO", className="pill bajo"), f"menos de {fmt(THRESHOLD * 100, 1)} %"]),
+        html.Span([html.Span("MEDIO", className="pill medio"), f"de {fmt(THRESHOLD * 100, 1)} % a menos de 50 %"]),
+        html.Span([html.Span("ALTO", className="pill alto"), "50 % o más"]),
+    ], className="help-levels"),
+    html.Div("La probabilidad es la de obtener un puntaje global menor a 210. El resultado sirve para priorizar "
+             "apoyos de refuerzo; no es un diagnóstico de ningún estudiante.", className="note"),
+], className="card help")
+
 tab_pred = html.Div(html.Div([
+    pred_help,
     html.Div([
         html.Div([
             html.H3(["Perfil del estudiante ", html.Small("· variables conocidas antes de la prueba")]),
