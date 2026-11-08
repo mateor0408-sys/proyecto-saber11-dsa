@@ -1,0 +1,4 @@
+run,modelo,variables,autor,run_id,val_rmse,val_mae,val_r2,test_rmse,test_mae,test_r2
+hgbr-lr0.05-l63,hgbr,todas,Mateo Ríos,7e646aba548d42afb6e4d3e3d6621fbb,40.7876,32.9341,0.3792,40.7344,32.8218,0.3805
+hgbr-lr0.1,hgbr,todas,Mateo Ríos,c6b6bf40daf04940978b5c12acd7fc60,40.8146,32.9675,0.3784,40.7784,32.8633,0.3792
+ridge-a1,ridge,todas,Mateo Ríos,3dad4b4b19fe49679bf012be951fe480,42.8379,34.7993,0.3152,42.7307,34.6538,0.3183

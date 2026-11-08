@@ -452,9 +452,17 @@ def template(_):
 
 
 @app.callback(Output("batch-table", "data"), Output("batch-table", "columns"), Output("batch-msg", "children"),
-              Output("batch-store", "data"), Input("upload", "contents"), State("upload", "filename"),
-              prevent_initial_call=True)
-def batch(contents, filename):
+              Output("batch-store", "data"), Input("upload", "contents"), Input("url", "search"),
+              State("upload", "filename"))
+def batch(contents, search, filename):
+    if ctx.triggered_id != "upload":
+        if "demo=1" not in (search or ""):
+            return no_update, no_update, no_update, no_update
+        # Modo demostración: 25 estudiantes de ejemplo tomados de los datos
+        demo = DF[FEATURES].sample(25, random_state=7).astype(object)
+        demo.insert(0, "id_estudiante", [f"EST-{i:04d}" for i in range(1, 26)])
+        contents = "data:text/csv;base64," + base64.b64encode(demo.to_csv(index=False).encode()).decode()
+        filename = "demo_estudiantes.csv"
     try:
         raw = base64.b64decode(contents.split(",", 1)[1])
         df = pd.read_csv(io.BytesIO(raw), dtype=str)
@@ -470,7 +478,10 @@ def batch(contents, filename):
     msg = f"{filename}: {len(out)} estudiantes · {(out.nivel == 'alto').sum()} en riesgo alto."
     if missing:
         msg += f" Columnas ausentes (se imputaron automáticamente): {', '.join(missing)}."
-    return out[keep].to_dict("records"), [{"name": c, "id": c} for c in keep], msg, out.to_json(orient="split")
+    names = {"id_estudiante": "Estudiante", "prob_riesgo": "Prob. riesgo", "nivel": "Nivel",
+             "puntaje_estimado": "Puntaje estimado", **LABELS}
+    return (out[keep].to_dict("records"), [{"name": names.get(c, c), "id": c} for c in keep], msg,
+            out.to_json(orient="split"))
 
 
 @app.callback(Output("dl-results", "data"), Input("btn-download", "n_clicks"), State("batch-store", "data"),
