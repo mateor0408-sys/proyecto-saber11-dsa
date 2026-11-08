@@ -24,3 +24,7 @@ $T --task clasificacion --model hgb --features colegio --params learning_rate=0.
 $T --task regresion --model ridge --params alpha=1 --run-name ridge-a1
 $T --task regresion --model hgbr --params learning_rate=0.1 max_iter=200 --run-name hgbr-lr0.1
 $T --task regresion --model hgbr --params learning_rate=0.05 max_iter=500 max_leaf_nodes=63 --run-name hgbr-lr0.05-l63
+
+# Aporte Harol: variante adicional de Random Forest (misma particion 70/15/15).
+$T --task clasificacion --model rf --params n_estimators=150 max_depth=16 min_samples_leaf=15 max_samples=0.35 class_weight=balanced --run-name rf-harol-d16-n150
+
