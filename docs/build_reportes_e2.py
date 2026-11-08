@@ -135,7 +135,11 @@ def reporte_entrega():
         ["hgb-lr0.05-l63(-bal)", "lr = 0,05, 500 iter., 63 hojas (± balanceo)"],
         ["hgb-solo-hogar / colegio", "Ablación de variables con hgb-lr0.05-l63"],
         ["ridge-a1 / hgbr-*", "Regresión del puntaje global"],
+        ["rf-harol-d16-n150†", "Bosque, 150 árboles, prof. 16, hoja ≥ 15, balanceado"],
     ], widths=[3.3, 5.1])
+    p = doc.add_paragraph()
+    set_font(p.add_run("† Ejecutado por H. Perafan en su propio servidor MLflow en EC2, con la misma partición "
+                       "70/15/15 y el mismo script."), size=8, italic=True)
     subsection(doc, "D", "Seguimiento con MLflow")
     body(doc, f"Cada ejecución de src/train.py crea un run en un servidor MLflow [2] en una instancia EC2 "
               f"(http://{MLFLOW_IP}:5000) con backend SQLite y almacenamiento de artefactos. Por run se registran "
@@ -156,7 +160,11 @@ def reporte_entrega():
     best_name = BEST["run_name"]
     body(doc, f"El gradient boosting domina (Tabla II, Fig. {f_cmp}): {best_name} obtiene AUC-PR de "
               f"{c(run(best_name).val_auc_pr)} frente a {c(rf.val_auc_pr)} del mejor bosque y {c(lin.val_auc_pr)} "
-              "de la regresión logística. Se seleccionó como campeón y se evaluó en prueba (Tabla III).")
+              "de la regresión logística. La variante de bosque rf-harol-d16-n150, ejecutada en un segundo servidor "
+              "MLflow, obtuvo AUC-ROC de 0,78 y AUC-PR de 0,55 en prueba (Fig. 11), lo que confirma la brecha "
+              "frente al boosting. Una comparación complementaria con partición 60/20/20 y un clasificador trivial "
+              "de referencia (AUC-ROC 0,50, AUC-PR 0,25) reprodujo el mismo orden. El boosting se seleccionó "
+              "como campeón y se evaluó en prueba (Tabla III).")
     f_roc = figure(doc, cnt, MOD / "mejor_riesgo_curvas_roc_pr.png",
                    f"Curvas ROC y precisión–recall del modelo campeón ({best_name}) en validación; el punto naranja "
                    "marca el umbral de decisión.")
@@ -220,12 +228,13 @@ def reporte_entrega():
               "matriz estrato × naturaleza. (2) Predicción de riesgo: un formulario con el perfil del estudiante "
               "devuelve la probabilidad, el nivel (bajo/medio/alto), el puntaje estimado, la tasa de su "
               "departamento, una recomendación y los factores que más pesan, calculados por oclusión frente al "
-              "perfil más común; incluye las métricas del modelo registrado. (3) Priorización por lotes: se carga "
+              "perfil más común; incluye una guía de uso en tres pasos, la lectura de los niveles y las métricas del "
+              "modelo registrado. (3) Priorización por lotes: se carga "
               "un CSV de estudiantes, se obtiene la lista ordenada por riesgo y se descarga el resultado.")
     new_section(doc, 1)
     figure(doc, cnt, TAB / "tab1_diagnostico.png", "Pestaña 1 — Diagnóstico territorial.", width=FULL_W)
-    figure_pair(doc, cnt, (TAB / "tab2_prediccion.png", "Pestaña 2 — Predicción de riesgo con factores "
-                                                       "explicativos y métricas del modelo."),
+    figure_pair(doc, cnt, (TAB / "tab2_prediccion.png", "Pestaña 2 — Predicción de riesgo con guía de uso, "
+                                                       "lectura de niveles, factores explicativos y métricas."),
                 (TAB / "tab3_lotes.png", "Pestaña 3 — Priorización por lotes (modo demostración con 25 "
                                          "estudiantes)."))
     new_section(doc, 2)
@@ -245,6 +254,9 @@ def reporte_entrega():
     capture(doc, cnt, "mlflow_registro.png", "Experimentos de clasificación (saber11-riesgo) y regresión "
                                            "(saber11-puntaje) en el servidor MLflow.", width=FULL_W)
     new_section(doc, 2)
+    figure(doc, cnt, ROOT / "reports" / "evidencias_entrega2" / "06_random_forest_equipo_70_15_15.png",
+           "Run rf-harol-d16-n150 en el servidor MLflow de H. Perafan en EC2 (IP 54.90.207.241, usuario "
+           "ubuntu).")
 
     references(doc, [
         "ICFES, “Resultados únicos Saber 11,” Datos Abiertos Colombia, 2024. [En línea]. Disponible: "
@@ -282,13 +294,16 @@ def reporte_equipo():
          "(tres pestañas). Integración del reporte.",
          "src/features.py, train.py, run_experiments.sh, select_best.py, report_models.py, deploy/, dashboard/, docs/"],
         ["Harol Perafan",
-         "Diseño y ejecución de experimentos adicionales de modelos en MLflow (variantes de hiperparámetros) y "
-         "análisis de resultados para las observaciones y conclusiones.",
-         "src/run_experiments.sh, runs en MLflow con etiqueta autor"],
+         "Montaje de un servidor MLflow propio en EC2 y experimento adicional de bosque aleatorio "
+         "(rf-harol-d16-n150) con la partición del equipo. Pipeline complementario de comparación de modelos "
+         "(clasificador trivial, logística, boosting y bosque) con partición 60/20/20 y verificación de resultados.",
+         "src/run_experiments.sh, src/train_models.py, src/train_rf_comparison.py, src/summarize_models.py, "
+         "src/verify_models.py, reports/modeling/, reports/evidencias_entrega2/"],
         ["Sebastian Vivas",
-         "Revisión de la interfaz del tablero frente a la maqueta y mejoras de usabilidad en la pestaña de "
-         "predicción; validación funcional del tablero.",
-         "dashboard/app.py, dashboard/assets/"],
+         "Mejoras de usabilidad del tablero en la pestaña de predicción: guía de uso en tres pasos y recuadro "
+         "«Cómo leer el nivel» con los umbrales de riesgo y su interpretación; estilos accesibles (contraste "
+         "WCAG).",
+         "dashboard/app.py, dashboard/assets/style.css"],
     ], widths=[2.6, 8.6, 6.0], size=9)
     section_title(doc, None, "Actividades conjuntas y seguimiento")
     bullets(doc, [

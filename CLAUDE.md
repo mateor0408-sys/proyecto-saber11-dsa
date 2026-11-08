@@ -27,17 +27,11 @@ colegio, para priorizar intervenciones de refuerzo?
   - Reporte en `docs/reporte_entrega2.pdf` (7 páginas) y zip en `../Entrega2_Saber11.zip`.
 
 ### Pendiente inmediato
-1. **Harol ya hizo su commit** (c4f9428): un pipeline de modelado propio en su EC2, con
-   `src/train_models.py`, `src/summarize_models.py`, `src/verify_models.py` y `requirements-modeling*.txt`.
-   Sus resultados están en `reports/modeling/` y las evidencias de MLflow en
-   `reports/**/evidencias_entrega2/`. **Ajustar su fila** del reporte de equipo en
-   `docs/build_reportes_e2.py` (hoy dice "experimento en run_experiments.sh") para describir este trabajo
-   real. Si aporta, citar sus evidencias en el reporte principal.
-2. Falta el commit de Sebastian (mejora de `dashboard/app.py` o `dashboard/assets/style.css`).
-   Verificarlo con `git pull` + `git log`.
-3. Regenerar los PDFs (`docs/build_reportes_e2.py` + docx2pdf) y el zip `../Entrega2_Saber11.zip`, con el
-   mismo esquema que el actual: LEEME + 2 PDF + `git archive` del repo + `reports/capturas_e2/`.
-   Mateo sube el zip.
+- Entrega 2 **cerrada en el repo**: commits de Harol (run `rf-harol-d16-n150` en su MLflow de EC2, IP 54.90.207.241,
+  + pipeline complementario 60/20/20 en `src/train_models.py` y `reports/modeling/`) y de Sebastian (guía de uso y
+  leyenda de niveles en la pestaña de predicción) integrados en los reportes. Zip final: `../Entrega2_Saber11.zip`.
+  Solo falta que Mateo lo suba.
+- A Harol se le pasó `../models_saber11.zip` (carpeta models/) porque no tiene acceso al S3 de Mateo.
 
 ### Siguiente: Entrega 3 (pendiente de enunciado)
 API FastAPI que sirva los modelos de `models/` + tablero consumiendo la API (hoy carga el modelo
