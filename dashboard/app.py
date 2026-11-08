@@ -223,21 +223,29 @@ form_fields = [c for c in ["cole_depto_ubicacion", "cole_naturaleza", "cole_area
                            "fami_educacionmadre", "fami_educacionpadre", "fami_estratovivienda",
                            "fami_personashogar", "fami_tieneinternet", "fami_tienecomputador",
                            "fami_tieneautomovil", "fami_cuartoshogar", "cole_caracter", "estu_genero"]]
+# Ayuda de la pestaña de predicción. Los pasos van en una franja de una línea arriba; la lectura de los
+# niveles va dentro de la tarjeta del resultado, que es donde se lee el nivel.
 pred_help = html.Div([
-    html.H3(["Cómo usar esta pestaña ", html.Small("· estimación del riesgo para un perfil de estudiante")]),
+    html.Span("Cómo usar", className="help-label"),
     html.Ol([
-        html.Li("Elija en «Perfil del estudiante» las características que se conocen antes de la prueba."),
-        html.Li(["Pulse ", html.B("Calcular riesgo"), "."]),
-        html.Li("Lea la probabilidad, el nivel de riesgo, el puntaje estimado y los factores que más pesan."),
-    ]),
-    html.Div([
-        html.Span([html.Span("BAJO", className="pill bajo"), f"menos de {fmt(THRESHOLD * 100, 1)} %"]),
-        html.Span([html.Span("MEDIO", className="pill medio"), f"de {fmt(THRESHOLD * 100, 1)} % a menos de 50 %"]),
-        html.Span([html.Span("ALTO", className="pill alto"), "50 % o más"]),
-    ], className="help-levels"),
-    html.Div("La probabilidad es la de obtener un puntaje global menor a 210. El resultado sirve para priorizar "
-             "apoyos de refuerzo; no es un diagnóstico de ningún estudiante.", className="note"),
-], className="card help")
+        html.Li(html.Span("Elija el perfil del estudiante")),
+        html.Li(html.Span(["Pulse ", html.B("Calcular riesgo")])),
+        html.Li(html.Span("Lea el nivel, el puntaje y los factores")),
+    ], className="help-steps"),
+    html.Span(f"Al abrir se muestra un perfil de ejemplo ({DEFAULT_PROFILE['cole_depto_ubicacion'].title()}, "
+              f"zona {DEFAULT_PROFILE['cole_area_ubicacion'].lower()}).", className="help-aside"),
+], className="help")
+
+level_legend = html.Div([
+    html.Div("Cómo leer el nivel", className="legend-title"),
+    html.Div([html.Span("RIESGO BAJO", className="pill bajo"), f"menos de {fmt(THRESHOLD * 100, 1)} %"],
+             className="legend-row"),
+    html.Div([html.Span("RIESGO MEDIO", className="pill medio"),
+              f"de {fmt(THRESHOLD * 100, 1)} % a menos de 50 %"], className="legend-row"),
+    html.Div([html.Span("RIESGO ALTO", className="pill alto"), "50 % o más"], className="legend-row"),
+    html.Div("La probabilidad es la de obtener un puntaje global menor a 210. Sirve para priorizar apoyos de "
+             "refuerzo, no para diagnosticar a un estudiante.", className="legend-note"),
+], className="legend")
 
 tab_pred = html.Div(html.Div([
     pred_help,
@@ -253,7 +261,7 @@ tab_pred = html.Div(html.Div([
             html.Div(html.Button("Calcular riesgo", id="btn-predict", className="btn"), style={"marginTop": 12}),
         ], className="card"),
         html.Div([html.H3("Resultado del modelo"), dcc.Graph(id="gauge", config={"displayModeBar": False}),
-                  html.Div(id="pred-text")], className="card"),
+                  html.Div(id="pred-text"), level_legend], className="card"),
         html.Div([html.H3(["Factores que más pesan en esta predicción ", html.Small("· puntos de probabilidad")]),
                   dcc.Graph(id="contrib", config={"displayModeBar": False}),
                   html.Div("Cambio en la probabilidad de riesgo frente al perfil más común en Colombia "
