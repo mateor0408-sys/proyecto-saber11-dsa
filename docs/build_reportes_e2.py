@@ -240,8 +240,10 @@ def reporte_entrega():
     capture(doc, cnt, "ec2_instancia.png", f"Instancia EC2 en ejecución (IP {MLFLOW_IP}, usuario visible).",
             width=FULL_W)
     capture(doc, cnt, "mlflow_experimentos.png", f"Runs del experimento saber11-riesgo en MLflow "
-                                                 f"(http://{MLFLOW_IP}:5000).", width=FULL_W)
-    capture(doc, cnt, "mlflow_registro.png", "Modelos registrados en el Model Registry de MLflow.", width=FULL_W)
+                                                 f"(http://{MLFLOW_IP}:5000); el campeón figura como modelo registrado saber11-riesgo v1.",
+            width=FULL_W)
+    capture(doc, cnt, "mlflow_registro.png", "Experimentos de clasificación (saber11-riesgo) y regresión "
+                                           "(saber11-puntaje) en el servidor MLflow.", width=FULL_W)
     new_section(doc, 2)
 
     references(doc, [
