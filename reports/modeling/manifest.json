@@ -1,0 +1,32 @@
+{
+  "seed": 42,
+  "threshold_score": 210,
+  "sha256": "d6e2e129ed1f62eabf3f4cc970602a9fd84e38edcbb901abb10e948323c0ba40",
+  "rows": 532788,
+  "features": [
+    "edad",
+    "estu_genero",
+    "fami_estratovivienda",
+    "fami_educacionmadre",
+    "fami_educacionpadre",
+    "fami_personashogar",
+    "fami_cuartoshogar",
+    "fami_tieneinternet",
+    "fami_tienecomputador",
+    "fami_tieneautomovil",
+    "fami_tienelavadora",
+    "cole_naturaleza",
+    "cole_area_ubicacion",
+    "cole_jornada",
+    "cole_calendario",
+    "cole_bilingue",
+    "cole_caracter",
+    "cole_genero",
+    "cole_depto_ubicacion"
+  ],
+  "split": {
+    "train": 319672,
+    "validation": 106558,
+    "test": 106558
+  }
+}
