@@ -7,3 +7,8 @@ dvc[s3]
 jupyter
 nbconvert
 python-docx
+scikit-learn
+mlflow
+dash
+plotly
+boto3
