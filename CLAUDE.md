@@ -27,13 +27,17 @@ colegio, para priorizar intervenciones de refuerzo?
   - Reporte en `docs/reporte_entrega2.pdf` (7 páginas) y zip en `../Entrega2_Saber11.zip`.
 
 ### Pendiente inmediato
-1. Esperar los commits de Harol (experimento RF extra en su propio MLflow + línea en
-   `src/run_experiments.sh`) y de Sebastian (mejora de `dashboard/app.py` o `dashboard/assets/style.css`).
-   Verificar con `git pull` + `git log` que aparezcan con su nombre.
-2. **Regenerar el zip** `../Entrega2_Saber11.zip` para que incluya su código. Usa el mismo esquema que el
-   zip actual: LEEME + 2 PDF + `git archive` del repo + `reports/capturas_e2/`. Si cambian las
-   responsabilidades, ajustar el reporte de equipo en `docs/build_reportes_e2.py`.
-3. Mateo sube el zip.
+1. **Harol ya hizo su commit** (c4f9428): un pipeline de modelado propio en su EC2, con
+   `src/train_models.py`, `src/summarize_models.py`, `src/verify_models.py` y `requirements-modeling*.txt`.
+   Sus resultados están en `reports/modeling/` y las evidencias de MLflow en
+   `reports/**/evidencias_entrega2/`. **Ajustar su fila** del reporte de equipo en
+   `docs/build_reportes_e2.py` (hoy dice "experimento en run_experiments.sh") para describir este trabajo
+   real. Si aporta, citar sus evidencias en el reporte principal.
+2. Falta el commit de Sebastian (mejora de `dashboard/app.py` o `dashboard/assets/style.css`).
+   Verificarlo con `git pull` + `git log`.
+3. Regenerar los PDFs (`docs/build_reportes_e2.py` + docx2pdf) y el zip `../Entrega2_Saber11.zip`, con el
+   mismo esquema que el actual: LEEME + 2 PDF + `git archive` del repo + `reports/capturas_e2/`.
+   Mateo sube el zip.
 
 ### Siguiente: Entrega 3 (pendiente de enunciado)
 API FastAPI que sirva los modelos de `models/` + tablero consumiendo la API (hoy carga el modelo
