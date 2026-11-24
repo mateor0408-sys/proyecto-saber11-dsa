@@ -10,15 +10,15 @@ El modelo se carga desde models/ (exportado de MLflow con src/select_best.py).
 """
 import base64
 import io
-import json
+import os
 import sys
 from functools import lru_cache
 from pathlib import Path
 
-import mlflow
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import requests
 from dash import Dash, Input, Output, State, ctx, dash_table, dcc, html, no_update
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +26,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from features import FEATURE_SETS, MISSING, NUMERIC, prepare_X  # noqa: E402
 
 DATA = ROOT / "data" / "processed" / "saber11_clean.parquet"
-MODELS = ROOT / "models"
+API_URL = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
+API_BATCH = 1000  # máximo de registros por solicitud que acepta la API
 FEATURES = FEATURE_SETS["todas"]
 
 BLUE, ORANGE, INK, MUTED, GRID = "#2a78d6", "#eb6834", "#0b0b0b", "#8a8984", "#e4e3df"
@@ -86,10 +87,6 @@ def load_data():
 
 
 DF = load_data()
-CLF = mlflow.sklearn.load_model(str(MODELS / "riesgo"))
-REG = mlflow.sklearn.load_model(str(MODELS / "puntaje"))
-SELECTION = json.loads((MODELS / "seleccion.json").read_text())
-THRESHOLD = SELECTION["riesgo"]["metricas"]["umbral"]
 REFERENCE = {c: (DF[c].median() if c in NUMERIC else DF[c].mode()[0]) for c in FEATURES}
 
 
@@ -102,17 +99,44 @@ def options_for(col):
             for v in values]
 
 
-def risk_level(p):
-    if p >= 0.5:
-        return "alto"
-    return "medio" if p >= THRESHOLD else "bajo"
+# ----------------------------------------------------------------------------- cliente de la API
+# El tablero no carga los modelos: todas las predicciones las sirve la API (api/main.py).
+class APIError(Exception):
+    pass
+
+
+@lru_cache(maxsize=1)
+def model_info() -> dict:
+    """Métricas, versión y umbral de los modelos en servicio (GET /modelo). Se consulta una sola vez."""
+    try:
+        r = requests.get(f"{API_URL}/modelo", timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as exc:
+        raise APIError(f"No fue posible conectar con la API de predicción ({API_URL}).") from exc
+
+
+def api_predict(X: pd.DataFrame) -> pd.DataFrame:
+    """POST /predict en bloques; devuelve prob_riesgo, nivel y puntaje_estimado en el orden de X."""
+    X = prepare_X(X.reset_index(drop=True), FEATURES).astype(object)
+    X = X.where(X.notna(), None)
+    out = []
+    for i in range(0, len(X), API_BATCH):
+        try:
+            r = requests.post(f"{API_URL}/predict", json={"estudiantes": X.iloc[i:i + API_BATCH].to_dict("records")},
+                              timeout=60)
+        except requests.RequestException as exc:
+            raise APIError(f"No fue posible conectar con la API de predicción ({API_URL}).") from exc
+        if r.status_code != 200:
+            raise APIError(f"La API respondió con error {r.status_code}: {r.text[:200]}")
+        out.extend(r.json()["predicciones"])
+    return pd.DataFrame(out, columns=["prob_riesgo", "nivel", "puntaje_estimado"])
 
 
 def predict_frame(X: pd.DataFrame) -> pd.DataFrame:
-    X = prepare_X(X, FEATURES)
-    proba = CLF.predict_proba(X)[:, 1]
-    return pd.DataFrame({"prob_riesgo": proba.round(3), "nivel": [risk_level(p) for p in proba],
-                         "puntaje_estimado": REG.predict(X).round(0).astype(int)})
+    res = api_predict(X)
+    res["prob_riesgo"] = res["prob_riesgo"].round(3)
+    return res
 
 
 def contributions(profile: dict) -> pd.Series:
@@ -123,7 +147,7 @@ def contributions(profile: dict) -> pd.Series:
         alt = base.copy()
         alt[c] = REFERENCE[c]
         rows.append(alt)
-    proba = CLF.predict_proba(prepare_X(pd.concat(rows, ignore_index=True), FEATURES))[:, 1]
+    proba = api_predict(pd.concat(rows, ignore_index=True))["prob_riesgo"].to_numpy()
     return pd.Series(proba[0] - proba[1:], index=FEATURES)
 
 
@@ -137,6 +161,14 @@ def base_layout(fig, height=320, **kw):
                       plot_bgcolor="white", font=dict(size=11, color=INK, family=FONT), showlegend=False, **kw)
     fig.update_xaxes(gridcolor=GRID, zeroline=False)
     fig.update_yaxes(gridcolor=GRID, zeroline=False)
+    return fig
+
+
+def empty_figure(height):
+    fig = go.Figure()
+    base_layout(fig, height)
+    fig.update_xaxes(visible=False)
+    fig.update_yaxes(visible=False)
     return fig
 
 
@@ -238,10 +270,9 @@ pred_help = html.Div([
 
 level_legend = html.Div([
     html.Div("Cómo leer el nivel", className="legend-title"),
-    html.Div([html.Span("RIESGO BAJO", className="pill bajo"), f"menos de {fmt(THRESHOLD * 100, 1)} %"],
+    html.Div([html.Span("RIESGO BAJO", className="pill bajo"), html.Span(id="legend-bajo")], className="legend-row"),
+    html.Div([html.Span("RIESGO MEDIO", className="pill medio"), html.Span(id="legend-medio")],
              className="legend-row"),
-    html.Div([html.Span("RIESGO MEDIO", className="pill medio"),
-              f"de {fmt(THRESHOLD * 100, 1)} % a menos de 50 %"], className="legend-row"),
     html.Div([html.Span("RIESGO ALTO", className="pill alto"), "50 % o más"], className="legend-row"),
     html.Div("La probabilidad es la de obtener un puntaje global menor a 210. Sirve para priorizar apoyos de "
              "refuerzo, no para diagnosticar a un estudiante.", className="legend-note"),
@@ -303,10 +334,23 @@ app.layout = html.Div([
         dcc.Tab(tab_batch, label="3. Priorización por lotes", value="lotes", className="tab",
                 selected_className="tab--selected"),
     ], className="tabs-bar"),
-    html.Div("Riesgo = puntaje global por debajo del percentil 25 nacional (210 puntos). "
-             f"Modelo: {SELECTION['riesgo']['run_name']} (MLflow, versión {SELECTION['riesgo']['version_registro']}).",
-             className="footer"),
+    html.Div(id="footer", className="footer"),
 ], className="app")
+
+
+# ----------------------------------------------------------------------------- callbacks: modelo en servicio
+@app.callback(Output("legend-bajo", "children"), Output("legend-medio", "children"), Output("footer", "children"),
+              Input("url", "pathname"))
+def model_texts(_):
+    """Umbral y versión del modelo según la API (GET /modelo)."""
+    base = "Riesgo = puntaje global por debajo del percentil 25 nacional (210 puntos). "
+    try:
+        info = model_info()
+    except APIError as exc:
+        return "por debajo del umbral", "del umbral a menos de 50 %", base + str(exc)
+    thr, r = info["riesgo"]["metricas"]["umbral"], info["riesgo"]
+    return (f"menos de {fmt(thr * 100, 1)} %", f"de {fmt(thr * 100, 1)} % a menos de 50 %",
+            base + f"Modelo: {r['run_name']} (MLflow, versión {r['version_registro']}) servido por la API.")
 
 
 # ----------------------------------------------------------------------------- callbacks: diagnóstico
@@ -411,7 +455,14 @@ def update_diag(depto, mpio, nat, zona, jornada, factor):
 def predict(_, *values):
     profile = dict(DEFAULT_PROFILE)
     profile.update(dict(zip(form_fields + ["edad"], values)))
-    res = predict_frame(pd.DataFrame([profile])).iloc[0]
+    try:
+        info = model_info()
+        res = predict_frame(pd.DataFrame([profile])).iloc[0]
+        contrib = contributions(profile)
+    except APIError as exc:
+        return (empty_figure(210), html.Div(str(exc), className="result-line"), empty_figure(300), no_update)
+    SELECTION = info
+    THRESHOLD = info["riesgo"]["metricas"]["umbral"]
     p, level = float(res.prob_riesgo), res.nivel
 
     gauge = go.Figure(go.Indicator(
@@ -423,7 +474,6 @@ def predict(_, *values):
     base_layout(gauge, 210)
     gauge.update_layout(margin=dict(l=40, r=40, t=25, b=5))
 
-    contrib = contributions(profile)
     top = contrib.reindex(contrib.abs().sort_values(ascending=False).index).head(6)
     names = [f"{LABELS[c]}: {profile[c]}" for c in top.index]
     cfig = go.Figure(go.Bar(x=top.values * 100, y=names, orientation="h",
@@ -464,7 +514,8 @@ def predict(_, *values):
                       html.Div([html.B(f"{SELECTION['puntaje']['metricas']['test_rmse']:.1f}"), "RMSE puntaje (prueba)"])],
                      className="model-meta"),
             html.Div("Nivel: bajo si la probabilidad es menor al umbral; medio entre el umbral y 50 %; alto desde 50 %. "
-                     "El umbral se eligió para detectar al menos 70 % de los estudiantes en riesgo.", className="note")]
+                     "El umbral se eligió para detectar al menos 70 % de los estudiantes en riesgo.", className="note"),
+            html.Div(f"Predicción servida por la API · {API_URL}/predict", className="note")]
     return gauge, text, cfig, card
 
 
@@ -496,8 +547,12 @@ def batch(contents, search, filename):
     missing = [c for c in FEATURES if c not in df.columns]
     for c in missing:
         df[c] = np.nan
+    try:
+        preds = predict_frame(df)
+    except APIError as exc:
+        return [], [], str(exc), None
     out = pd.concat([df.drop(columns=[c for c in FEATURES if c in missing]).reset_index(drop=True),
-                     predict_frame(df)], axis=1).sort_values("prob_riesgo", ascending=False)
+                     preds], axis=1).sort_values("prob_riesgo", ascending=False)
     keep = [c for c in ["id_estudiante", "prob_riesgo", "nivel", "puntaje_estimado", "cole_depto_ubicacion",
                         "cole_jornada", "fami_educacionmadre", "fami_tieneinternet"] if c in out.columns]
     msg = f"{filename}: {len(out)} estudiantes · {(out.nivel == 'alto').sum()} en riesgo alto."
