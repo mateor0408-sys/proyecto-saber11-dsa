@@ -29,7 +29,8 @@ src/train.py            entrenamiento + registro en MLflow (un run por ejecució
 src/run_experiments.sh  experimentos de la Entrega 2
 src/select_best.py      mejor run -> Model Registry de MLflow y models/ (DVC)
 src/report_models.py    tablas y figuras de modelos para el reporte
-dashboard/app.py        tablero Dash (diagnóstico, predicción, priorización por lotes)
+api/main.py             API FastAPI que sirve los modelos de models/ (/health, /modelo, /predict)
+dashboard/app.py        tablero Dash (diagnóstico, predicción, priorización por lotes); predice vía la API
 deploy/mlflow_ec2.sh    instala y arranca el servidor MLflow en EC2
 reports/                figuras del EDA y de los modelos
 mockup/                 maqueta del tablero
@@ -54,7 +55,16 @@ bash src/run_experiments.sh        # todos los experimentos
 python src/select_best.py          # registra y exporta el mejor modelo a models/
 ```
 
-### Tablero
+### API y tablero
+El tablero no carga los modelos: todas las predicciones las pide a la API. Primero se levanta la API
+(necesita `models/`) y luego el tablero (necesita `data/processed/`), indicándole la URL de la API.
 ```bash
-python dashboard/app.py            # http://localhost:8050  (?tab=pred, ?tab=lotes)
+uvicorn api.main:app --host 0.0.0.0 --port 8000      # documentación en http://localhost:8000/docs
+API_URL=http://localhost:8000 python dashboard/app.py # http://localhost:8050  (?tab=pred, ?tab=lotes)
 ```
+- `GET /health`: estado de la API. `GET /modelo`: run de MLflow, versión, métricas y umbral en servicio.
+- `POST /predict` con `{"estudiantes": [{...}, ...]}` (máx. 1000 por solicitud; las variables ausentes o
+  nulas se tratan como "Sin información"). Devuelve `prob_riesgo`, `nivel` y `puntaje_estimado`.
+- `API_URL` vale `http://localhost:8000` por defecto; en contenedores se apunta al servicio de la API.
+- Si la API no responde, el tablero sigue funcionando (diagnóstico territorial) y muestra el aviso en
+  las pestañas de predicción.
