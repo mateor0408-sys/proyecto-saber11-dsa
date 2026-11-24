@@ -12,3 +12,5 @@ mlflow
 dash
 plotly
 boto3
+fastapi
+uvicorn

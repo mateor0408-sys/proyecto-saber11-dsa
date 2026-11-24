@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     seleccion = json.loads(
         (MODELS / "seleccion.json").read_text(encoding="utf-8")
     )
+    loaded["seleccion"] = seleccion
     loaded["umbral"] = float(
         seleccion["riesgo"]["metricas"]["umbral"]
     )
@@ -66,23 +67,18 @@ def features():
     return {"variables": FEATURES}
 
 
+@app.get("/modelo")
+def modelo():
+    """Modelos en servicio: run de MLflow, versión registrada, métricas y umbral."""
+    return loaded["seleccion"]
+
+
 @app.post("/predict")
 def predict(request: PredictionRequest):
-    for i, estudiante in enumerate(request.estudiantes):
-        faltantes = [
-            c for c in FEATURES if c not in estudiante
-        ]
-        if faltantes:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "registro": i,
-                    "variables_faltantes": faltantes,
-                },
-            )
-
+    # Las variables ausentes o nulas se tratan como "Sin información" (categóricas)
+    # o se imputan con la mediana (edad), igual que en el entrenamiento.
     try:
-        frame = pd.DataFrame(request.estudiantes)
+        frame = pd.DataFrame(request.estudiantes).reindex(columns=FEATURES)
         X = prepare_X(frame, FEATURES)
 
         probabilidades = loaded["riesgo"].predict_proba(X)[:, 1]
