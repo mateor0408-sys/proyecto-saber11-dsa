@@ -1,0 +1,31 @@
+# API y tablero del proyecto Saber 11.
+# Requiere models/ y data/processed/saber11_clean.parquet (DVC: dvc pull o dvc repro).
+# Uso: docker compose up -d --build   ->  API en :8000/docs, tablero en :8050
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: saber11-api
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    image: saber11-dashboard
+    environment:
+      - API_URL=http://api:8000
+    ports:
+      - "${DASH_HOST_PORT:-8050}:8050"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

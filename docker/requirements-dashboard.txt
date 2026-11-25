@@ -1,0 +1,9 @@
+# Dependencias del tablero (no carga modelos: pide las predicciones a la API)
+pandas==3.1.1
+numpy==2.5.4
+pyarrow==26.0.1
+scikit-learn==1.9.1
+dash
+plotly
+requests
+gunicorn

@@ -68,3 +68,16 @@ API_URL=http://localhost:8000 python dashboard/app.py # http://localhost:8050  (
 - `API_URL` vale `http://localhost:8000` por defecto; en contenedores se apunta al servicio de la API.
 - Si la API no responde, el tablero sigue funcionando (diagnóstico territorial) y muestra el aviso en
   las pestañas de predicción.
+
+### Despliegue con Docker
+La API y el tablero corren en dos contenedores definidos en `docker-compose.yml` (`docker/api.Dockerfile` y
+`docker/dashboard.Dockerfile`). El tablero llega a la API por la red interna de Compose con
+`API_URL=http://api:8000`. Antes de construir deben existir `models/` y `data/processed/saber11_clean.parquet`
+(`dvc pull` o `dvc repro`), porque se copian dentro de las imágenes.
+```bash
+docker compose up -d --build     # API en http://<IP>:8000/docs, tablero en http://<IP>:8050
+docker compose ps                # estado de los dos servicios
+docker compose logs -f           # registros de ambos contenedores
+docker compose down              # detener
+```
+En EC2 deben estar abiertos los puertos 8000 y 8050 en el grupo de seguridad.
