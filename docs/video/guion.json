@@ -2,10 +2,9 @@
   "titulo": "Guion del video — Monitor de Riesgo Académico Saber 11 (Entrega final)",
   "indicaciones": [
     "Duración objetivo: 9 minutos (máximo permitido: 10). Los tiempos de cada bloque son aproximados.",
-    "Cada uno graba su parte con cámara encendida y pantalla compartida (Zoom o Teams, grabación en la nube o local). Se puede grabar en una sola reunión, pasando la pantalla al siguiente.",
-    "No se lee el reporte: se habla con las diapositivas y se muestran las demos en vivo. El texto es una guía; díganlo con sus palabras.",
-    "Antes de grabar: Sebastian enciende su EC2, verifica `docker compose ps` y comparte la IP pública nueva con el equipo (cambia al encender). Las URL del guion usan 35.153.80.5; reemplazarla por la IP del día.",
-    "Mateo tiene abiertas las capturas de MLflow (o el servidor MLflow encendido) para la diapositiva 4."
+    "Todo se presenta con la presentación (presentacion_video.pptx): no hay demos en vivo ni hay que encender ninguna instancia de AWS. Las capturas de las diapositivas son la evidencia del despliegue (EC2, MLflow, API, tablero y contenedores).",
+    "Cada uno graba su parte con la cámara encendida y la presentación compartida (Zoom o Teams). Se puede grabar en una sola reunión, pasando la pantalla al siguiente.",
+    "No se lee el reporte: se habla con las diapositivas. El texto es una guía; díganlo con sus palabras."
   ],
   "diapositivas": [
     {
@@ -37,8 +36,8 @@
       "titulo": "Modelos y experimentos en MLflow",
       "presenta": "Mateo",
       "segundos": 60,
-      "pantalla": "Diapositiva 4. Luego, 10 segundos de la captura (o del servidor) de MLflow mostrando la IP y los runs.",
-      "texto": "Entrenamos regresión logística, bosques aleatorios y gradient boosting, con partición 70/15/15. Como solo una de cada cuatro observaciones está en riesgo, elegimos el modelo por AUC-PR y fijamos el umbral para detectar al menos el 70 % de los estudiantes en riesgo. Registramos más de 13 experimentos en un servidor MLflow sobre EC2: aquí se ven los runs, sus métricas y el modelo campeón en el Model Registry. El gradient boosting gana en todas las métricas, y la ablación muestra que las variables del hogar y del colegio se complementan."
+      "pantalla": "Diapositiva 4: señalar la captura de MLflow (IP del servidor en la barra del navegador) y la barra del gradient boosting.",
+      "texto": "Entrenamos regresión logística, bosques aleatorios y gradient boosting, con partición 70/15/15. Como solo una de cada cuatro observaciones está en riesgo, elegimos el modelo por AUC-PR y fijamos el umbral para detectar al menos el 70 % de los estudiantes en riesgo. Registramos más de 13 experimentos en un servidor MLflow sobre EC2; en la captura se ven los runs con sus métricas y la IP del servidor. El gradient boosting gana, y la ablación muestra que las variables del hogar y del colegio se complementan."
     },
     {
       "n": 5,
@@ -53,16 +52,16 @@
       "titulo": "API de inferencia",
       "presenta": "Harol",
       "segundos": 75,
-      "pantalla": "Diapositiva 6. Luego demo en el navegador: http://35.153.80.5:8000/docs → GET /health → POST /predict con el ejemplo (Try it out → Execute) y mostrar la respuesta.",
-      "texto": "Para separar el modelo del tablero construimos una API con FastAPI. Al iniciar carga los dos modelos campeones exportados de MLflow y usa exactamente el mismo preprocesamiento del entrenamiento. Tiene cuatro endpoints: health para saber si está viva, features con las variables, modelo con la versión y las métricas en servicio, y predict, que recibe hasta mil estudiantes y devuelve la probabilidad, el nivel de riesgo y el puntaje estimado. Aquí en Swagger, en la IP de la EC2, envío un estudiante de La Guajira, zona rural, y la API responde con su probabilidad y su nivel."
+      "pantalla": "Diapositiva 6: señalar la captura de Swagger en la IP de EC2 y la respuesta de /predict.",
+      "texto": "Para separar el modelo del tablero construimos una API con FastAPI. Al iniciar carga los dos modelos campeones exportados de MLflow y usa el mismo preprocesamiento del entrenamiento. Tiene cuatro endpoints: health para saber si está viva, features con las variables, modelo con la versión y las métricas en servicio, y predict, que recibe hasta mil estudiantes y devuelve la probabilidad, el nivel de riesgo y el puntaje estimado. En la captura se ve la documentación de la API desplegada en la IP de la EC2, y abajo la respuesta para un estudiante de La Guajira, zona rural: 45 % de probabilidad, riesgo medio y 222 puntos estimados."
     },
     {
       "n": 7,
       "titulo": "El tablero",
       "presenta": "Harol",
       "segundos": 80,
-      "pantalla": "Diapositiva 7. Luego demo en http://35.153.80.5:8050: pestaña 1 (clic en un departamento), pestaña 2 (cambiar internet a «Sí» y pulsar Calcular riesgo), pestaña 3 (cargar la plantilla CSV y mostrar la lista ordenada).",
-      "texto": "El tablero tiene tres pestañas. En el diagnóstico territorial filtramos y, con un clic en un departamento, bajamos a sus municipios y colegios prioritarios. En predicción de riesgo describimos a un estudiante y, al pulsar calcular, el tablero le pide la predicción a la API: vemos la probabilidad, el nivel, el puntaje estimado, una recomendación y los factores que más pesan. Si cambio, por ejemplo, internet en casa, el riesgo baja. Y en priorización por lotes un rector carga un CSV con sus estudiantes y descarga la lista ordenada por riesgo. Sebastian les muestra cómo lo desplegamos."
+      "pantalla": "Diapositiva 7: recorrer las tres capturas de izquierda a derecha.",
+      "texto": "El tablero tiene tres pestañas. En el diagnóstico territorial se filtra por departamento, municipio, naturaleza, zona y jornada, y con un clic en un departamento se baja a sus municipios y colegios prioritarios. En predicción de riesgo se describe a un estudiante y, al pulsar calcular, el tablero le pide la predicción a la API: se ve la probabilidad, el nivel, el puntaje estimado, una recomendación y los factores que más pesan. Esta captura es del tablero desplegado en la EC2. Y en priorización por lotes un rector carga un CSV con sus estudiantes y descarga la lista ordenada por riesgo. Sebastian les muestra cómo lo desplegamos."
     },
     {
       "n": 8,
@@ -74,18 +73,18 @@
     },
     {
       "n": 9,
-      "titulo": "Recursos en AWS (demo)",
+      "titulo": "Recursos en AWS",
       "presenta": "Sebastian",
       "segundos": 55,
-      "pantalla": "Demo: consola de AWS → EC2 → instancia en ejecución (IP pública visible) → pestaña Seguridad con las reglas 8000 y 8050 → terminal SSH con `docker compose ps` y `docker compose logs --tail 5`. Volver a la diapositiva 9 al terminar.",
-      "texto": "Estos son los recursos que usamos. Esta es la instancia EC2 en ejecución con su IP pública; en el grupo de seguridad están abiertos los puertos 8000 de la API y 8050 del tablero. Por SSH vemos los dos contenedores arriba, la API en estado healthy, y en los logs las solicitudes POST a predict que hace el tablero. Los experimentos quedaron en el servidor MLflow que les mostró Mateo, también en EC2."
+      "pantalla": "Diapositiva 9: señalar en la captura la IP de la instancia, los dos contenedores y los POST /predict.",
+      "texto": "Estos son los recursos que usamos. En la terminal conectada por SSH a la instancia EC2 se ven los dos contenedores arriba, la API en estado healthy, y en los registros las solicitudes POST a predict que hace el tablero. La instancia corre Ubuntu 24.04 con Docker, y en su grupo de seguridad abrimos el puerto 8000 de la API y el 8050 del tablero. Los experimentos quedaron en el servidor MLflow, también en EC2. Al terminar dejamos las instancias detenidas, no terminadas, como pide el curso."
     },
     {
       "n": 10,
       "titulo": "Conclusiones y cierre",
       "presenta": "Sebastian (cierre: todos)",
       "segundos": 60,
-      "pantalla": "Diapositiva 10, con las cámaras de los tres al final.",
+      "pantalla": "Diapositiva 10.",
       "texto": "Para cerrar: el modelo identifica 7 de cada 10 estudiantes en riesgo antes de la prueba y es casi dos veces más eficiente que priorizar al azar. El territorio, la extraedad y la jornada concentran el riesgo, así que las intervenciones deben combinar programas territoriales y acompañamiento familiar. Separar API y tablero nos permite actualizar el modelo sin tocar el tablero. Como siguientes pasos: validar con otros periodos, agregar HTTPS y autenticación, y usarlo siempre para priorizar apoyo, nunca para etiquetar estudiantes. Mateo: el código, los manuales y el reporte están en nuestro repositorio de GitHub. Harol y Sebastian: ¡muchas gracias!"
     }
   ]

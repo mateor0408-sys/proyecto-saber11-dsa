@@ -121,10 +121,11 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
     valAxisHidden: true, valAxisMinVal: 0.45, valAxisMaxVal: 0.62,
     valGridLine: { style: "none" }, catGridLine: { style: "none" }, showLegend: false, barGapWidthPct: 50,
   });
-  const items = [[TEAL, "13+ runs en MLflow", "parámetros, métricas, curvas y modelo por run; campeón en el Model Registry"],
-                 [PURPLE, "Partición 70/15/15", "estratificada; selección solo con validación"],
-                 [NAVY, "AUC-PR y recall ≥ 0,70", "métrica para clases desbalanceadas y regla del umbral"]];
-  items.forEach(([c, h, b], i) => textCard(s, 8.2, 2.3 + i * 1.4, 4.35, 1.25, c, h, b, 14));
+  // Evidencia de MLflow en EC2 (la IP del servidor queda visible en la barra del navegador)
+  const end = pic(s, "reports/capturas_e2/mlflow_experimentos.png", 8.2, 2.3, 4.35, 1.595);
+  note(s, "Runs del experimento saber11-riesgo en MLflow sobre EC2 (http://54.242.29.105:5000)", 8.2, end + 0.05, 4.35);
+  textCard(s, 8.2, end + 0.45, 4.35, 6.45 - end - 0.45, TEAL, "13+ runs en MLflow",
+           "Partición 70/15/15 · AUC-PR · umbral con recall ≥ 0,70", 14);
 }
 
 // ------------------------------------------------------------------------------------------- 5 resultados
@@ -193,9 +194,9 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 9 recursos AWS
 {
-  const s = content(9, "Recursos desplegados en AWS", "Presenta Sebastian · Evidencia del despliegue (demo en vivo en el video)");
+  const s = content(9, "Recursos desplegados en AWS", "Presenta Sebastian · Evidencia del despliegue en EC2 con Docker Compose");
   const end = pic(s, "reports/evidencias_entrega3/15_contenedores_compose_ec2.png", 0.8, 2.3, 11.75, 4.261);
-  const tiles = [[TEAL, "EC2 · Ubuntu 24.04", "Docker y Compose; IP pública 35.153.80.5 (cambia al encender)"],
+  const tiles = [[TEAL, "EC2 · Ubuntu 24.04", "Docker y Compose; IP pública 35.153.80.5 (privada 172.31.42.190)"],
                  [PURPLE, "Grupo de seguridad", "SSH 22 · API 8000 · tablero 8050"],
                  [NAVY, "MLflow en EC2", "servidor de experimentos (puerto 5000) y Model Registry"]];
   tiles.forEach(([c, h, b], i) => textCard(s, 0.8 + i * 4.0, end + 0.3, 3.75, 6.45 - end - 0.3, c, h, b, 15));
