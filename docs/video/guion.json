@@ -1,0 +1,92 @@
+{
+  "titulo": "Guion del video — Monitor de Riesgo Académico Saber 11 (Entrega final)",
+  "indicaciones": [
+    "Duración objetivo: 9 minutos (máximo permitido: 10). Los tiempos de cada bloque son aproximados.",
+    "Cada uno graba su parte con cámara encendida y pantalla compartida (Zoom o Teams, grabación en la nube o local). Se puede grabar en una sola reunión, pasando la pantalla al siguiente.",
+    "No se lee el reporte: se habla con las diapositivas y se muestran las demos en vivo. El texto es una guía; díganlo con sus palabras.",
+    "Antes de grabar: Sebastian enciende su EC2, verifica `docker compose ps` y comparte la IP pública nueva con el equipo (cambia al encender). Las URL del guion usan 35.153.80.5; reemplazarla por la IP del día.",
+    "Mateo tiene abiertas las capturas de MLflow (o el servidor MLflow encendido) para la diapositiva 4."
+  ],
+  "diapositivas": [
+    {
+      "n": 1,
+      "titulo": "Portada",
+      "presenta": "Mateo",
+      "segundos": 20,
+      "pantalla": "Diapositiva 1.",
+      "texto": "Hola, somos Mateo Ríos, Harol Perafan y Sebastian Vivas. Les presentamos el Monitor de Riesgo Académico Saber 11, un producto de datos que anticipa qué estudiantes podrían obtener un puntaje bajo en la prueba, para que las secretarías de educación actúen a tiempo."
+    },
+    {
+      "n": 2,
+      "titulo": "El problema",
+      "presenta": "Mateo",
+      "segundos": 45,
+      "pantalla": "Diapositiva 2.",
+      "texto": "El puntaje global de Saber 11 define el acceso a la universidad y a becas, y las brechas son enormes: en Chocó el 61 % de los estudiantes queda en el cuartil más bajo del país, frente a 12 % en Bogotá. El problema es que hoy los programas de refuerzo se focalizan con los resultados del año anterior, es decir, cuando el estudiante ya presentó la prueba. Queremos mover esa decisión a antes de la prueba."
+    },
+    {
+      "n": 3,
+      "titulo": "Pregunta de negocio y datos",
+      "presenta": "Mateo",
+      "segundos": 40,
+      "pantalla": "Diapositiva 3.",
+      "texto": "Nuestra pregunta es: ¿qué estudiantes, colegios y municipios tienen mayor riesgo de sacar menos de 210 puntos, el percentil 25 nacional, según sus características socioeconómicas y del colegio? Usamos los resultados oficiales del ICFES publicados en datos.gov.co, periodo 2022-2: 532 mil estudiantes únicos y 19 variables que se conocen antes de la prueba. Los datos y los modelos se versionan con DVC en S3."
+    },
+    {
+      "n": 4,
+      "titulo": "Modelos y experimentos en MLflow",
+      "presenta": "Mateo",
+      "segundos": 60,
+      "pantalla": "Diapositiva 4. Luego, 10 segundos de la captura (o del servidor) de MLflow mostrando la IP y los runs.",
+      "texto": "Entrenamos regresión logística, bosques aleatorios y gradient boosting, con partición 70/15/15. Como solo una de cada cuatro observaciones está en riesgo, elegimos el modelo por AUC-PR y fijamos el umbral para detectar al menos el 70 % de los estudiantes en riesgo. Registramos más de 13 experimentos en un servidor MLflow sobre EC2: aquí se ven los runs, sus métricas y el modelo campeón en el Model Registry. El gradient boosting gana en todas las métricas, y la ablación muestra que las variables del hogar y del colegio se complementan."
+    },
+    {
+      "n": 5,
+      "titulo": "Resultados del modelo",
+      "presenta": "Mateo",
+      "segundos": 50,
+      "pantalla": "Diapositiva 5.",
+      "texto": "En el conjunto de prueba el modelo tiene AUC-ROC de 0,80 y detecta 70 % de los estudiantes que terminan en riesgo. De cada 100 estudiantes que prioriza, 48 están realmente en riesgo, casi el doble que eligiendo al azar. Lo que más pesa es el departamento, la edad, que captura la extraedad, y la jornada. Además estimamos el puntaje global con un error de unos 41 puntos, como dato orientativo. Ahora Harol les cuenta cómo servimos este modelo."
+    },
+    {
+      "n": 6,
+      "titulo": "API de inferencia",
+      "presenta": "Harol",
+      "segundos": 75,
+      "pantalla": "Diapositiva 6. Luego demo en el navegador: http://35.153.80.5:8000/docs → GET /health → POST /predict con el ejemplo (Try it out → Execute) y mostrar la respuesta.",
+      "texto": "Para separar el modelo del tablero construimos una API con FastAPI. Al iniciar carga los dos modelos campeones exportados de MLflow y usa exactamente el mismo preprocesamiento del entrenamiento. Tiene cuatro endpoints: health para saber si está viva, features con las variables, modelo con la versión y las métricas en servicio, y predict, que recibe hasta mil estudiantes y devuelve la probabilidad, el nivel de riesgo y el puntaje estimado. Aquí en Swagger, en la IP de la EC2, envío un estudiante de La Guajira, zona rural, y la API responde con su probabilidad y su nivel."
+    },
+    {
+      "n": 7,
+      "titulo": "El tablero",
+      "presenta": "Harol",
+      "segundos": 80,
+      "pantalla": "Diapositiva 7. Luego demo en http://35.153.80.5:8050: pestaña 1 (clic en un departamento), pestaña 2 (cambiar internet a «Sí» y pulsar Calcular riesgo), pestaña 3 (cargar la plantilla CSV y mostrar la lista ordenada).",
+      "texto": "El tablero tiene tres pestañas. En el diagnóstico territorial filtramos y, con un clic en un departamento, bajamos a sus municipios y colegios prioritarios. En predicción de riesgo describimos a un estudiante y, al pulsar calcular, el tablero le pide la predicción a la API: vemos la probabilidad, el nivel, el puntaje estimado, una recomendación y los factores que más pesan. Si cambio, por ejemplo, internet en casa, el riesgo baja. Y en priorización por lotes un rector carga un CSV con sus estudiantes y descarga la lista ordenada por riesgo. Sebastian les muestra cómo lo desplegamos."
+    },
+    {
+      "n": 8,
+      "titulo": "Arquitectura y despliegue con Docker",
+      "presenta": "Sebastian",
+      "segundos": 60,
+      "pantalla": "Diapositiva 8.",
+      "texto": "La solución corre en dos contenedores Docker. La imagen de la API lleva los modelos exportados de MLflow; la del tablero lleva los datos agregados pero no los modelos, y llega a la API por la red interna de Docker Compose. Compose tiene un healthcheck: el tablero solo arranca cuando la API responde. Todo se levanta con un solo comando, docker compose up, en una instancia EC2 con Ubuntu, y abrimos los puertos 8000 y 8050 en el grupo de seguridad."
+    },
+    {
+      "n": 9,
+      "titulo": "Recursos en AWS (demo)",
+      "presenta": "Sebastian",
+      "segundos": 55,
+      "pantalla": "Demo: consola de AWS → EC2 → instancia en ejecución (IP pública visible) → pestaña Seguridad con las reglas 8000 y 8050 → terminal SSH con `docker compose ps` y `docker compose logs --tail 5`. Volver a la diapositiva 9 al terminar.",
+      "texto": "Estos son los recursos que usamos. Esta es la instancia EC2 en ejecución con su IP pública; en el grupo de seguridad están abiertos los puertos 8000 de la API y 8050 del tablero. Por SSH vemos los dos contenedores arriba, la API en estado healthy, y en los logs las solicitudes POST a predict que hace el tablero. Los experimentos quedaron en el servidor MLflow que les mostró Mateo, también en EC2."
+    },
+    {
+      "n": 10,
+      "titulo": "Conclusiones y cierre",
+      "presenta": "Sebastian (cierre: todos)",
+      "segundos": 60,
+      "pantalla": "Diapositiva 10, con las cámaras de los tres al final.",
+      "texto": "Para cerrar: el modelo identifica 7 de cada 10 estudiantes en riesgo antes de la prueba y es casi dos veces más eficiente que priorizar al azar. El territorio, la extraedad y la jornada concentran el riesgo, así que las intervenciones deben combinar programas territoriales y acompañamiento familiar. Separar API y tablero nos permite actualizar el modelo sin tocar el tablero. Como siguientes pasos: validar con otros periodos, agregar HTTPS y autenticación, y usarlo siempre para priorizar apoyo, nunca para etiquetar estudiantes. Mateo: el código, los manuales y el reporte están en nuestro repositorio de GitHub. Harol y Sebastian: ¡muchas gracias!"
+    }
+  ]
+}
