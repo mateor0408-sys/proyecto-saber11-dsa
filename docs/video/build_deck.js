@@ -85,7 +85,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 2 problema
 {
-  const s = content(2, "Las brechas en Saber 11 se atienden tarde", "Presenta Mateo · Contexto y relevancia");
+  const s = content(2, "Las brechas en Saber 11 se atienden tarde", "Contexto y relevancia");
   statCard(s, 0.8, 2.35, 3.75, 1.55, "61 %", "de los estudiantes de Chocó en el cuartil más bajo del país", PURPLE);
   statCard(s, 4.8, 2.35, 3.75, 1.55, "12 %", "en Bogotá: brecha territorial de 5 a 1", TEAL);
   statCard(s, 8.8, 2.35, 3.75, 1.55, "0–500", "puntaje global que define el acceso a la universidad y a becas", NAVY);
@@ -95,7 +95,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 3 pregunta y datos
 {
-  const s = content(3, "¿Quién está en riesgo antes de la prueba?", "Presenta Mateo · Pregunta de negocio, alcance y datos");
+  const s = content(3, "¿Quién está en riesgo antes de la prueba?", "Pregunta de negocio, alcance y datos");
   card(s, 0.8, 2.3, 11.75, 1.45, NAVY);
   T(s, "¿Qué estudiantes, colegios y municipios tienen mayor riesgo de obtener un puntaje global menor a 210 "
        + "(percentil 25 nacional), según sus características socioeconómicas y del colegio, para priorizar refuerzo?",
@@ -109,7 +109,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 4 modelos
 {
-  const s = content(4, "Gradient boosting supera a los demás modelos", "Presenta Mateo · Experimentos en MLflow sobre AWS EC2 · AUC-PR en validación");
+  const s = content(4, "Gradient boosting supera a los demás modelos", "Experimentos en MLflow sobre AWS EC2 · AUC-PR en validación");
   const rows = [["Solo colegio (ablación)", 0.5133], ["Solo hogar (ablación)", 0.5307], ["Regresión logística", 0.5463],
                 ["Bosque aleatorio", 0.5497], ["Gradient boosting", 0.5893]];
   s.addChart(pres.ChartType.bar, [{ name: "AUC-PR", labels: rows.map((r) => r[0]), values: rows.map((r) => r[1]) }], {
@@ -130,7 +130,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 5 resultados
 {
-  const s = content(5, "El modelo prioriza casi 2 veces mejor que el azar", "Presenta Mateo · Modelo campeón hgb-lr0.05-l63 en el conjunto de prueba");
+  const s = content(5, "El modelo prioriza casi 2 veces mejor que el azar", "Modelo campeón hgb-lr0.05-l63 en el conjunto de prueba");
   statCard(s, 0.8, 2.35, 3.2, 1.55, dec(MR.test_auc_roc), "AUC-ROC (criterio de éxito ≥ 0,75)", NAVY);
   statCard(s, 4.2, 2.35, 3.2, 1.55, pct(MR.test_recall), "de los estudiantes en riesgo se detectan", TEAL);
   statCard(s, 0.8, 4.15, 3.2, 1.55, pct(MR.test_precision), `de los priorizados están en riesgo (${dec(MR.test_precision / 0.25, 1)}× el azar)`, PURPLE);
@@ -143,7 +143,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 6 API
 {
-  const s = content(6, "Una API sirve el modelo a cualquier cliente", "Presenta Harol · FastAPI con los modelos exportados de MLflow");
+  const s = content(6, "Una API sirve el modelo a cualquier cliente", "FastAPI con los modelos exportados de MLflow");
   const eps = [["GET", "/health", "estado del servicio"], ["GET", "/features", "las 19 variables del modelo"],
                ["GET", "/modelo", "run, versión, métricas y umbral"],
                ["POST", "/predict", "hasta 1.000 estudiantes → probabilidad, nivel y puntaje"]];
@@ -165,7 +165,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 7 tablero
 {
-  const s = content(7, "Un tablero para diagnosticar, predecir y priorizar", "Presenta Harol · Dash; todas las predicciones se piden a la API");
+  const s = content(7, "Un tablero para diagnosticar, predecir y priorizar", "Dash; todas las predicciones se piden a la API");
   const h = 3.05, y = 2.3;
   const shots = [["reports/tablero/tab1_diagnostico.png", 0.791, TEAL, "1 · Diagnóstico territorial"],
                  ["reports/evidencias_entrega3/14_tablero_desplegado_ec2.png", 1.326, PURPLE, "2 · Predicción de riesgo"],
@@ -186,7 +186,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 8 arquitectura
 {
-  const s = content(8, "Dos contenedores Docker en AWS EC2", "Presenta Sebastian · Arquitectura de la solución");
+  const s = content(8, "Dos contenedores Docker en AWS EC2", "Arquitectura de la solución");
   pic(s, "reports/arquitectura/arquitectura.png", 2.4, 2.2, 8.55, 2.126);
   T(s, "docker compose up -d --build · healthcheck en /health · el tablero llega a la API por la red interna "
        + "(API_URL=http://api:8000)", { x: 0.85, y: 6.35, w: 11.65, h: 0.3, fontSize: 13, color: GREY, align: "center" });
@@ -194,7 +194,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 9 recursos AWS
 {
-  const s = content(9, "Recursos desplegados en AWS", "Presenta Sebastian · Evidencia del despliegue en EC2 con Docker Compose");
+  const s = content(9, "Recursos desplegados en AWS", "Evidencia del despliegue en EC2 con Docker Compose");
   const end = pic(s, "reports/evidencias_entrega3/15_contenedores_compose_ec2.png", 0.8, 2.3, 11.75, 4.261);
   const tiles = [[TEAL, "EC2 · Ubuntu 24.04", "Docker y Compose; IP pública 35.153.80.5 (privada 172.31.42.190)"],
                  [PURPLE, "Grupo de seguridad", "SSH 22 · API 8000 · tablero 8050"],
@@ -204,7 +204,7 @@ const dec = (v, d = 2) => v.toFixed(d).replace(".", ",");
 
 // ------------------------------------------------------------------------------------------- 10 conclusiones
 {
-  const s = content(10, "Un prototipo útil para priorizar a tiempo", "Conclusiones · Presenta Sebastian; cierre de los tres");
+  const s = content(10, "Un prototipo útil para priorizar a tiempo", "Conclusiones");
   textCard(s, 0.8, 2.25, 3.78, 2.72, TEAL, "Lo logrado",
            "7 de cada 10 estudiantes en riesgo se detectan antes de la prueba, con casi 2× la eficiencia del azar.");
   textCard(s, 4.78, 2.25, 3.78, 2.72, NAVY, "Lo que muestra",
