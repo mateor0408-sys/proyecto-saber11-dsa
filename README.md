@@ -81,3 +81,11 @@ docker compose logs -f           # registros de ambos contenedores
 docker compose down              # detener
 ```
 En EC2 deben estar abiertos los puertos 8000 y 8050 en el grupo de seguridad.
+
+## Documentos de la entrega final
+- `docs/reporte_entrega3.pdf`: reporte final (IEEE), generado con `docs/build_reportes_e3.py`; el diagrama de
+  arquitectura sale de `docs/diagrama_arquitectura.py`.
+- `docs/manual_usuario.pdf` y `docs/manual_instalacion.pdf`: manuales del tablero.
+- `docs/reporte_equipo_e3.pdf`: reporte de trabajo en equipo.
+- `docs/video/`: diapositivas de apoyo y guion del video (`guion.json` alimenta las notas del orador y el guion;
+  `build_deck.js` genera la presentación y `build_guion.py` el guion).
