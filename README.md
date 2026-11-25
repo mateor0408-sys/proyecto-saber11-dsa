@@ -83,6 +83,7 @@ docker compose down              # detener
 En EC2 deben estar abiertos los puertos 8000 y 8050 en el grupo de seguridad.
 
 ## Documentos de la entrega final
+- Video: https://youtu.be/kFoEDJ0ufAM
 - `docs/reporte_entrega3.pdf`: reporte final (IEEE), generado con `docs/build_reportes_e3.py`; el diagrama de
   arquitectura sale de `docs/diagrama_arquitectura.py`.
 - `docs/manual_usuario.pdf` y `docs/manual_instalacion.pdf`: manuales del tablero.
